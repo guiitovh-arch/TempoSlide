@@ -1,17 +1,5 @@
 // Lógica pura de tiempos (sin React) — probada en test/smoke.js.
 
-export const api = async (url, opts = {}) => {
-  const r = await fetch('/api' + url, {
-    ...opts,
-    headers: opts.body && !(opts.body instanceof FormData) ? { 'Content-Type': 'application/json' } : undefined,
-    body: opts.body && !(opts.body instanceof FormData) ? JSON.stringify(opts.body) : opts.body,
-  });
-  if (r.status === 204) return null;
-  const j = await r.json();
-  if (!r.ok) throw new Error(j.error || 'Error');
-  return j;
-};
-
 export const fmt = (ms, signed = false) => {
   const neg = ms < 0;
   const s = Math.floor(Math.abs(ms) / 1000);
@@ -23,16 +11,16 @@ export const words = (t = '') => (t.trim() ? t.trim().split(/\s+/).length : 0);
 
 // Estimación por diapositiva (segundos): tiempo de lectura de las notas + un mínimo para respirar/transicionar.
 // ponytail: heurística lineal (wpm + base); un modelo con tipo de diapositiva (gráficos, separadores) sería la mejora.
-export const estimateSlides = (notes, count, wpm = 130, base = 8) =>
-  Array.from({ length: count }, (_, i) => Math.max(base + (words(notes[i]) / wpm) * 60, 15));
+export const estimateSlides = (notes, count, wpm = 130, skipped = [], base = 8) =>
+  Array.from({ length: count }, (_, i) => (skipped[i] ? 0 : Math.max(base + (words(notes[i]) / wpm) * 60, 15)));
 
 // Presupuesto por diapositiva escalado al tiempo objetivo total.
-export const budgets = (deck, count, wpm) => {
-  if (deck.slideTargets?.length === count) return deck.slideTargets;
-  const est = estimateSlides(deck.notes || [], count, wpm);
+export const budgets = (deck, count) => {
+  if (deck.slideTargets?.length === count) return deck.slideTargets.map((t, i) => (deck.skipped?.[i] ? 0 : t));
+  const est = estimateSlides(deck.notes || [], count, deck.wpm || 130, deck.skipped);
   const sum = est.reduce((a, b) => a + b, 0);
   const target = deck.targetMinutes * 60;
-  return est.map((s) => Math.round((s / sum) * target));
+  return est.map((s) => (sum ? Math.round((s / sum) * target) : 0));
 };
 
 // Banda del pre-análisis: estimado vs. objetivo.
@@ -60,4 +48,22 @@ export const perSlide = (slides, count) => {
   const out = Array(count).fill(0);
   for (const s of slides) if (s.index < count) out[s.index] += s.ms;
   return out;
+};
+
+// Dónde recortar: diapositivas que más se pasan de su plan en un ensayo (ms reales vs. segundos de plan).
+export const cuts = (planSec, realMs, n = 3) =>
+  planSec
+    .map((p, i) => ({ index: i, overMs: realMs[i] - p * 1000 }))
+    .filter((x) => x.overMs > 2000)
+    .sort((a, b) => b.overMs - a.overMs)
+    .slice(0, n);
+
+// Marcas de tiempo al inicio de las notas, p. ej. "(30 s)", "(1 min)", "(1,5 min)". null si no hay ninguna.
+// Las diapositivas sin marca (anexos) quedan en 0 s: no cuentan para el plan.
+export const markedTimes = (notes) => {
+  const t = notes.map((n) => {
+    const m = (n || '').match(/^\s*\((\d+(?:[.,]\d+)?)\s*(s|seg|segundos?|min|minutos?|m)\.?\)/i);
+    return m ? Math.round(parseFloat(m[1].replace(',', '.')) * (/^m/i.test(m[2]) ? 60 : 1)) : 0;
+  });
+  return t.some(Boolean) ? t : null;
 };

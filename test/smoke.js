@@ -1,8 +1,8 @@
 // Comprobación mínima: lógica de tiempos + extracción de notas del PPTX de prueba.
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
-import { fmt, estimateSlides, budgets, band, pace, phase, perSlide } from '../src/lib.js';
-import { pptxNotes } from '../server.js';
+import { fmt, estimateSlides, budgets, band, pace, phase, perSlide, cuts, markedTimes } from '../src/lib.js';
+import { pptxNotes } from '../src/pptx.js';
 
 assert.equal(fmt(65_000), '01:05');
 assert.equal(fmt(-5_000), '−00:05');
@@ -27,6 +27,26 @@ assert.equal(phase(-1, 100), 'over');
 assert.equal(phase(5, 100), 'danger');
 assert.equal(phase(20, 100), 'warn');
 assert.deepEqual(perSlide([{ index: 0, ms: 5 }, { index: 1, ms: 3 }, { index: 0, ms: 2 }], 2), [7, 3]);
+
+const sk = budgets({ notes, targetMinutes: 2, slideTargets: null, skipped: [false, true, false] }, 3);
+assert.equal(sk[1], 0); // omitida
+assert.ok(Math.abs(sk[0] + sk[2] - 120) <= 1);
+assert.deepEqual(cuts([10, 10, 10], [10_000, 25_000, 14_000]).map((c) => c.index), [1, 2]);
+
+assert.deepEqual(markedTimes(['(1,5 min) hola', '(10 seg) x', 'nada']), [90, 10, 0]);
+assert.equal(markedTimes(['sin marcas']), null);
+
+// Deck real del usuario (no versionado): solo si está presente.
+const tfmPath = new URL('./PraxiaJob_Defensa_TFM.pptx', import.meta.url);
+if (await fs.stat(tfmPath).catch(() => null)) {
+  const tfm = await pptxNotes(await fs.readFile(tfmPath));
+  assert.equal(tfm.length, 33);
+  const marks = markedTimes(tfm);
+  assert.deepEqual(marks.slice(0, 3), [20, 5, 35]);
+  assert.equal(marks[32], 0); // anexo sin marca
+  console.log('✓ deck TFM: 33 diapositivas, notas y marcas de tiempo');
+}
+
 
 const n = await pptxNotes(await fs.readFile(new URL('./tfm-demo.pptx', import.meta.url)));
 assert.equal(n.length, 6);

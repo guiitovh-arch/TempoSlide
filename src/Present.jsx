@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { api, fmt, budgets, pace, phase } from './lib.js';
+import { fmt, budgets, pace, phase } from './lib.js';
+import { getDeck, addSession } from './store.js';
 import Slide, { usePdf } from './Slide.jsx';
 
 export default function Present() {
@@ -27,7 +28,7 @@ export default function Present() {
   const prompterEl = useRef(null);
   const chan = useRef(null);
 
-  useEffect(() => { api(`/presentations/${id}`).then(setDeck); }, [id]);
+  useEffect(() => { getDeck(id).then(setDeck); }, [id]);
   const count = doc?.numPages ?? 0;
   const plan = deck && count ? budgets(deck, count) : [];
   const targetMs = (deck?.targetMinutes ?? 10) * 60_000;
@@ -48,6 +49,9 @@ export default function Present() {
     return () => clearInterval(i);
   }, [state]);
 
+  useEffect(() => { if (deck?.skipped?.[0]) { const f = deck.skipped.findIndex((x) => !x); if (f > 0) setPage(f); } }, [deck]);
+  const nextPage = (() => { let n = page + 1; while (deck?.skipped?.[n]) n++; return n; })();
+
   const start = () => {
     clock.current = { acc: 0, seg: performance.now(), lapStart: 0, laps: [] };
     setState('running');
@@ -57,9 +61,13 @@ export default function Present() {
     else if (state === 'paused') { clock.current.seg = performance.now(); setState('running'); }
   };
 
+  // Salta las diapositivas omitidas en la dirección del movimiento.
   const go = useCallback((n) => {
     if (!count) return;
-    const to = Math.max(0, Math.min(count - 1, n));
+    const dir = n >= page ? 1 : -1;
+    let to = Math.max(0, Math.min(count - 1, n));
+    while (deck?.skipped?.[to] && to + dir >= 0 && to + dir < count) to += dir;
+    if (deck?.skipped?.[to]) return;
     if (to === page) return;
     if (state !== 'ready') {
       const now = elapsed();
@@ -68,14 +76,14 @@ export default function Present() {
     }
     setPage(to);
     if (prompterEl.current) prompterEl.current.scrollTop = 0;
-  }, [count, page, state]);
+  }, [count, page, state, deck]);
 
   const finish = async () => {
     if (state === 'ready') return nav(`/app/deck/${id}`);
     const now = elapsed();
     const slides = [...clock.current.laps, { index: page, ms: Math.round(now - clock.current.lapStart) }];
     setSaving(true);
-    const s = await api(`/presentations/${id}/sessions`, { method: 'POST', body: { totalMs: Math.round(now), targetMs, slides, mode: prompter ? 'teleprompter' : 'ensayo' } });
+    const s = await addSession(id, { totalMs: Math.round(now), targetMs, slides, mode: prompter ? 'teleprompter' : 'ensayo' });
     nav(`/app/deck/${id}?session=${s.id}`);
   };
 
@@ -108,7 +116,7 @@ export default function Present() {
   // Teleprompter: auto-ritmo = el texto termina justo cuando se acaba el presupuesto de la diapositiva.
   const total = elapsed();
   const slideMs = state === 'ready' ? 0 : total - clock.current.lapStart;
-  const budgetMs = (plan[page] ?? 30) * 1000;
+  const budgetMs = (plan[page] || 0) * 1000;
   const lastTick = useRef(performance.now());
   useEffect(() => {
     const el = prompterEl.current;
@@ -117,7 +125,7 @@ export default function Present() {
     lastTick.current = now;
     if (!el || state !== 'running') return;
     const max = el.scrollHeight - el.clientHeight;
-    if (pAuto) el.scrollTop = Math.min(1, slideMs / budgetMs) * max;
+    if (pAuto) el.scrollTop = Math.min(1, slideMs / (budgetMs || 30_000)) * max;
     else el.scrollTop += pSpeed * dt;
   });
 
@@ -126,7 +134,7 @@ export default function Present() {
   const remaining = targetMs - total;
   const ph = phase(remaining, targetMs);
   const p = state === 'ready' ? 0 : pace(plan, page, slideMs, total);
-  const slidePct = Math.min(100, (slideMs / budgetMs) * 100);
+  const slidePct = budgetMs ? Math.min(100, (slideMs / budgetMs) * 100) : 0;
   const laps = state === 'ready' ? [] : clock.current.laps;
   const note = deck.notes?.[page] || '';
 
@@ -185,17 +193,17 @@ export default function Present() {
           </div>
 
           <div className="card-dark">
-            <div className="row between"><small>Diapositiva {page + 1} / {count}</small><small>plan {fmt(budgetMs)}</small></div>
-            <div className={`p-lap ${slideMs > budgetMs ? 'over' : ''}`}>{fmt(slideMs)}</div>
-            <div className="p-progress thin"><i style={{ width: `${slidePct}%` }} className={slideMs > budgetMs ? 'over' : ''} /></div>
+            <div className="row between"><small>Diapositiva {page + 1} / {count}</small><small>{budgetMs ? `plan ${fmt(budgetMs)}` : 'fuera del plan (anexo)'}</small></div>
+            <div className={`p-lap ${budgetMs && slideMs > budgetMs ? 'over' : ''}`}>{fmt(slideMs)}</div>
+            <div className="p-progress thin"><i style={{ width: `${slidePct}%` }} className={budgetMs && slideMs > budgetMs ? 'over' : ''} /></div>
           </div>
 
           <div className="card-dark p-next">
             <small>Siguiente</small>
-            {page + 1 < count ? <Slide doc={doc} page={page + 1} className="thumb" /> : <div className="slide-empty small">Última diapositiva</div>}
+            {nextPage < count ? <Slide doc={doc} page={nextPage} className="thumb" /> : <div className="slide-empty small">Última diapositiva</div>}
             <div className="row">
               <button className="btn glass" onClick={() => go(page - 1)} disabled={page === 0}>←</button>
-              <button className="btn glass grow" onClick={() => go(page + 1)} disabled={page >= count - 1}>Siguiente →</button>
+              <button className="btn glass grow" onClick={() => go(page + 1)} disabled={nextPage >= count}>Siguiente →</button>
             </div>
           </div>
 
@@ -203,10 +211,11 @@ export default function Present() {
             <small>Cronómetro por diapositiva</small>
             <ol>
               {plan.map((b, i) => {
+                if (deck.skipped?.[i]) return null;
                 const ms = laps.filter((l) => l.index === i).reduce((a, l) => a + l.ms, 0) + (i === page ? slideMs : 0);
                 return (
-                  <li key={i} className={`${i === page ? 'now' : ''} ${ms > b * 1000 ? 'over' : ''}`} onClick={() => go(i)}>
-                    <span>{i + 1}</span><span className="muted">{fmt(b * 1000)}</span><b>{ms ? fmt(ms) : '—'}</b>
+                  <li key={i} className={`${i === page ? 'now' : ''} ${b && ms > b * 1000 ? 'over' : ''}`} onClick={() => go(i)}>
+                    <span>{i + 1}</span><span className="muted">{b ? fmt(b * 1000) : 'anexo'}</span><b>{ms ? fmt(ms) : '—'}</b>
                   </li>
                 );
               })}

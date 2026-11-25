@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import * as pdfjs from 'pdfjs-dist';
 import worker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { getPdf } from './store.js';
 
 pdfjs.GlobalWorkerOptions.workerSrc = worker;
 const cache = new Map();
 export const loadPdf = (id) => {
-  if (!cache.has(id)) cache.set(id, pdfjs.getDocument({ url: `/api/presentations/${id}/slides.pdf` }).promise);
+  if (!cache.has(id)) cache.set(id, getPdf(id).then(async (b) => pdfjs.getDocument({ data: new Uint8Array(await b.arrayBuffer()) }).promise));
   return cache.get(id);
 };
 
