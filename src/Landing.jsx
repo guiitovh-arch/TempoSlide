@@ -1,6 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fmt } from './lib.js';
+import Demo from './Demo.jsx';
+
+const systemTheme = () => (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+export function ThemeToggle() {
+  const [t, setT] = useState(() => document.documentElement.dataset.theme || systemTheme());
+  const flip = () => {
+    const n = t === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = n;
+    try { localStorage.setItem('ts-theme', n); } catch {}
+    setT(n);
+  };
+  return <button className="theme-toggle" onClick={flip} aria-label={t === 'dark' ? 'Activar modo claro' : 'Activar modo nocturno'} title={t === 'dark' ? 'Modo claro' : 'Modo nocturno'}>{t === 'dark' ? '☀️' : '🌙'}</button>;
+}
 
 export const Logo = () => (
   <Link to="/" className="logo">
@@ -64,12 +77,12 @@ function Calculator() {
 }
 
 const features = [
-  { c: 'violet', i: '⏳', t: 'Temporizador', d: 'Cuenta atrás desde que pulsas “Iniciar”. Cambia de color al 25% y al 10%, y te avisa si entras en tiempo extra.' },
-  { c: 'pink', i: '⏱️', t: 'Cronómetro por diapositiva', d: 'Cada diapositiva se cronometra desde que entras hasta que pasas a la siguiente. Sabrás exactamente dónde se te va el tiempo.' },
-  { c: 'blue', i: '📜', t: 'Teleprompter', d: 'Tus notas del orador se importan solas del PPTX. Auto-scroll al ritmo de tu presupuesto, modo espejo y tamaño ajustable.' },
-  { c: 'green', i: '🔮', t: 'Pre-análisis', d: 'Antes de ensayar, estimamos cuánto dura tu presentación según tus notas y te decimos si vas cómodo o te vas a pasar.' },
-  { c: 'yellow', i: '🖥️', t: 'Pantalla de público', d: 'Abre una segunda ventana para el proyector. Tú ves tiempos y notas; ellos solo ven tus diapositivas.' },
-  { c: 'red', i: '📈', t: 'Informe de ensayos', d: 'Compara cada ensayo con tu plan, diapositiva a diapositiva. Ve cómo mejoras de un ensayo a otro.' },
+  { c: 'plum', i: '⏳', t: 'Temporizador', d: 'Cuenta atrás desde que pulsas “Iniciar”. Cambia de color al 25% y al 10%, y te avisa si entras en tiempo extra.' },
+  { c: 'coral', i: '⏱️', t: 'Cronómetro por diapositiva', d: 'Cada diapositiva se cronometra desde que entras hasta que pasas a la siguiente. Sabrás exactamente dónde se te va el tiempo.' },
+  { c: 'lilac', i: '📜', t: 'Teleprompter', d: 'Tus notas del orador se importan solas del PPTX. Auto-scroll al ritmo de tu presupuesto, modo espejo y tamaño ajustable.' },
+  { c: 'mint', i: '🔮', t: 'Pre-análisis', d: 'Antes de ensayar, estimamos cuánto dura tu presentación según tus notas y te decimos si vas cómodo o te vas a pasar.' },
+  { c: 'sun', i: '🖥️', t: 'Pantalla de público', d: 'Abre una segunda ventana para el proyector. Tú ves tiempos y notas; ellos solo ven tus diapositivas.' },
+  { c: 'plum', i: '📈', t: 'Informe de ensayos', d: 'Compara cada ensayo con tu plan, diapositiva a diapositiva. Ve cómo mejoras de un ensayo a otro.' },
 ];
 
 const plans = [
@@ -96,10 +109,15 @@ export default function Landing() {
         <div className="nav-links">
           <a href="#funciones">Funciones</a>
           <a href="#como">Cómo funciona</a>
+          <a href="#demo">Pruébalo</a>
           <a href="#precios">Precios</a>
           <a href="#faq">FAQ</a>
         </div>
-        <Link to="/app" className="btn dark">Abrir app</Link>
+        <div className="row">
+          <ThemeToggle />
+          <Link to="/login" className="btn ghost small hide-sm">Entrar</Link>
+          <Link to="/app" className="btn dark">Abrir app</Link>
+        </div>
       </nav>
 
       <header className="hero wrap">
@@ -145,6 +163,13 @@ export default function Landing() {
             <li key={t} className="card"><span className="num">{i + 1}</span><h3>{t}</h3><p>{d}</p></li>
           ))}
         </ol>
+      </section>
+
+      <section id="demo" className="wrap">
+        <span className="eyebrow center-block">Pruébalo ahora</span>
+        <h2>Ensaya 30 segundos aquí mismo.</h2>
+        <p className="muted center sub">Cuatro diapositivas, un plan de tiempo y tu voz. Mira cómo el cronómetro mide cada una.</p>
+        <Demo />
       </section>
 
       <section className="wrap">

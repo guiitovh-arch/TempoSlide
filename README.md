@@ -31,14 +31,27 @@ El `Dockerfile` se despliega con el runtime Container de Vercel (preset de frame
 
 Atajos en el presentador: `→`/`Espacio`/`PgDn` avanzar · `←`/`PgUp` retroceder · `Enter`/`S` iniciar · `P` pausa · `T` teleprompter · `B` negro · `F` pantalla completa. Los mandos de presentación (clickers) funcionan porque envían PgUp/PgDn.
 
+## Cuentas (Supabase)
+
+Sin configurar, la app funciona en **modo invitado** (todo en el navegador). Para activar cuentas:
+
+1. Crea un proyecto en Supabase y ejecuta `supabase/schema.sql` en el SQL Editor (tabla `decks` con RLS y bucket privado `slides`).
+2. En *Authentication → URL Configuration*: **Site URL** `https://temposlide.vercel.app` y en **Redirect URLs** añade `https://temposlide.vercel.app/app` y `http://localhost:3000/app`.
+3. (Opcional) *Authentication → Providers → Google* para el botón «Continuar con Google». El enlace mágico por correo funciona sin más.
+4. Variables de entorno del servidor (Vercel → Settings → Environment Variables, o local): `SUPABASE_URL` y `SUPABASE_ANON_KEY` (la clave *anon/publishable*, nunca la `service_role`).
+
+El cliente las lee en tiempo de ejecución desde `/api/config`, así no hace falta recompilar. Al iniciar sesión, las presentaciones creadas como invitado se suben automáticamente a la cuenta.
+
 ## Arquitectura
 
 - `server.js` — Express sin estado: `POST /api/convert` (PPTX/PPT/KEY/ODP → PDF con LibreOffice) y el frontend compilado.
-- `src/store.js` — biblioteca en IndexedDB: presentaciones (PDF + notas + plan) y ensayos viven en el navegador del usuario.
+- `src/store.js` — biblioteca: Supabase (tabla `decks` + Storage) con sesión; IndexedDB en modo invitado. Los PDFs se cachean en IndexedDB.
+- `src/supabase.js` — cliente y hook de sesión; `src/Login.jsx` — enlace mágico y Google.
+- `src/Demo.jsx` — mini ensayo interactivo de la landing.
 - `src/pptx.js` — notas del orador del PPTX (JSZip, en el navegador).
 - `src/lib.js` — lógica de tiempos: estimación, reparto, ritmo, marcas `(30 s)` en las notas, recortes (probada en `test/smoke.js`).
 - `src/` — React + Vite; diapositivas renderizadas con pdf.js. `fonts/` — Poppins para conversiones fieles.
 
 Si las notas empiezan con una marca de tiempo — `(30 s)`, `(1 min)` — se usan como plan por diapositiva; las diapositivas sin marca se tratan como anexo (0 s, fuera del plan).
 
-Limitaciones conocidas (prototipo): sin cuentas ni pagos reales; los datos no se sincronizan entre dispositivos; la pantalla de público funciona en el mismo navegador (BroadcastChannel).
+Limitaciones conocidas (prototipo): pagos simulados; en modo invitado los datos no salen del navegador; la pantalla de público funciona en el mismo navegador (BroadcastChannel).

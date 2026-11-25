@@ -1,17 +1,36 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { fmt, markedTimes } from './lib.js';
-import { listDecks, createDeck, updateDeck } from './store.js';
+import { listDecks, listLocalDecks, createDeck, updateDeck, importLocalDecks, clearPdfCache } from './store.js';
+import { supabase, useAuth } from './supabase.js';
 import { pptxNotes } from './pptx.js';
 import Slide, { usePdf } from './Slide.jsx';
-import { Logo } from './Landing.jsx';
+import { Logo, ThemeToggle } from './Landing.jsx';
+
+function Account() {
+  const { ready, enabled, user } = useAuth();
+  const nav = useNavigate();
+  if (!ready || !enabled) return null;
+  if (!user) return <Link to="/login" className="btn ghost small">Entrar</Link>;
+  const name = user.user_metadata?.full_name || user.email;
+  return (
+    <details className="account">
+      <summary title={user.email}><span className="avatar">{name[0].toUpperCase()}</span></summary>
+      <div className="account-menu card">
+        <b>{name}</b>
+        <span className="muted small">{user.email}</span>
+        <button className="btn ghost small" onClick={async () => { await (await supabase()).auth.signOut(); await clearPdfCache(); nav('/'); }}>Cerrar sesión</button>
+      </div>
+    </details>
+  );
+}
 
 export function AppNav({ children }) {
   return (
     <nav className="nav wrap app-nav">
       <Logo />
       <div className="nav-links"><Link to="/app">Mis presentaciones</Link></div>
-      <div className="row">{children}</div>
+      <div className="row">{children}<ThemeToggle /><Account /></div>
     </nav>
   );
 }
@@ -82,7 +101,16 @@ function Upload({ onDone }) {
 export default function Dashboard() {
   const [decks, setDecks] = useState(null);
   const nav = useNavigate();
-  useEffect(() => { listDecks().then(setDecks); }, []);
+  const auth = useAuth();
+  const [imported, setImported] = useState(0);
+  useEffect(() => {
+    if (!auth.ready) return;
+    (async () => {
+      // Primera vez con sesión: subir a la cuenta lo creado como invitado.
+      if (auth.user && (await listLocalDecks()).length) setImported(await importLocalDecks());
+      setDecks(await listDecks());
+    })().catch((e) => { console.error(e); setDecks([]); });
+  }, [auth.ready, auth.user?.id]);
 
   const totalSessions = decks?.reduce((a, d) => a + d.sessions.length, 0) ?? 0;
   const totalMs = decks?.reduce((a, d) => a + d.sessions.reduce((x, s) => x + s.totalMs, 0), 0) ?? 0;
@@ -94,15 +122,19 @@ export default function Dashboard() {
         <header className="dash-head">
           <div>
             <span className="eyebrow">Tu estudio</span>
-            <h1>Hola 👋 ¿Qué ensayamos hoy?</h1>
+            <h1>Hola{auth.user?.user_metadata?.full_name ? `, ${auth.user.user_metadata.full_name.split(' ')[0]}` : ''} 👋 ¿Qué ensayamos hoy?</h1>
           </div>
           <div className="stats">
-            <div className="stat violet"><b>{decks?.length ?? '–'}</b><span>presentaciones</span></div>
-            <div className="stat pink"><b>{totalSessions}</b><span>ensayos</span></div>
-            <div className="stat blue"><b>{fmt(totalMs)}</b><span>tiempo ensayado</span></div>
+            <div className="stat plum"><b>{decks?.length ?? '–'}</b><span>presentaciones</span></div>
+            <div className="stat coral"><b>{totalSessions}</b><span>ensayos</span></div>
+            <div className="stat mint"><b>{fmt(totalMs)}</b><span>tiempo ensayado</span></div>
           </div>
         </header>
 
+        {auth.ready && auth.enabled && !auth.user && (
+          <p className="notice">Estás en <b>modo invitado</b>: tus presentaciones solo viven en este navegador. <Link to="/login"><b>Crea una cuenta</b></Link> para guardarlas en la nube.</p>
+        )}
+        {imported > 0 && <p className="notice ok">☁️ Subimos a tu cuenta {imported} presentación{imported > 1 ? 'es' : ''} que tenías en este navegador.</p>}
         <Upload onDone={(d) => nav(`/app/deck/${d.id}`)} />
 
         <div className="decks">

@@ -1,5 +1,9 @@
-// Biblioteca local en IndexedDB: cada usuario guarda sus presentaciones y ensayos en su navegador.
-// ponytail: sin cuentas ni sincronización; añadir backend + auth cuando haga falta multi-dispositivo.
+// Biblioteca de presentaciones.
+// - Con sesión de Supabase: tabla `decks` (jsonb) + PDF en Storage `slides/<user>/<deck>.pdf` (ver supabase/schema.sql).
+// - Sin sesión (modo invitado): todo en IndexedDB, en este navegador.
+// En ambos casos el PDF se cachea en IndexedDB para no descargarlo en cada visita.
+import { supabase, currentUser } from './supabase.js';
+
 const open = () =>
   new Promise((res, rej) => {
     const r = indexedDB.open('temposlide', 1);
@@ -16,13 +20,53 @@ const tx = async (store, mode, fn) => {
     t.onerror = () => rej(t.error);
   });
 };
+const byDate = (a, b) => b.createdAt.localeCompare(a.createdAt);
+const must = ({ data, error }) => { if (error) throw new Error(error.message); return data; };
+const remote = async () => { const user = await currentUser(); return user ? { sb: await supabase(), user } : null; };
+const pdfPath = (user, id) => `${user.id}/${id}.pdf`;
 
-export const listDecks = async () => ((await tx('decks', 'readonly', (s) => s.getAll())) || []).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-export const getDeck = (id) => tx('decks', 'readonly', (s) => s.get(id));
-export const getPdf = (id) => tx('pdfs', 'readonly', (s) => s.get(id));
-export const putDeck = (d) => tx('decks', 'readwrite', (s) => s.put(d)).then(() => d);
+export const listLocalDecks = async () => ((await tx('decks', 'readonly', (s) => s.getAll())) || []).sort(byDate);
+
+export async function listDecks() {
+  const r = await remote();
+  if (!r) return listLocalDecks();
+  return must(await r.sb.from('decks').select('data').order('created_at', { ascending: false })).map((x) => x.data);
+}
+
+export async function getDeck(id) {
+  const r = await remote();
+  if (!r) return tx('decks', 'readonly', (s) => s.get(id));
+  return must(await r.sb.from('decks').select('data').eq('id', id).maybeSingle())?.data;
+}
+
+export async function putDeck(d) {
+  const r = await remote();
+  if (!r) await tx('decks', 'readwrite', (s) => s.put(d));
+  else must(await r.sb.from('decks').upsert({ id: d.id, data: d, updated_at: new Date().toISOString() }));
+  return d;
+}
+
+export async function getPdf(id) {
+  const cached = await tx('pdfs', 'readonly', (s) => s.get(id));
+  if (cached) return cached;
+  const r = await remote();
+  if (!r) return null;
+  const blob = must(await r.sb.storage.from('slides').download(pdfPath(r.user, id)));
+  await tx('pdfs', 'readwrite', (s) => s.put(blob, id));
+  return blob;
+}
+
 export const updateDeck = async (id, patch) => putDeck({ ...(await getDeck(id)), ...patch });
-export const deleteDeck = async (id) => { await tx('decks', 'readwrite', (s) => s.delete(id)); await tx('pdfs', 'readwrite', (s) => s.delete(id)); };
+
+export async function deleteDeck(id) {
+  const r = await remote();
+  if (r) {
+    must(await r.sb.from('decks').delete().eq('id', id));
+    await r.sb.storage.from('slides').remove([pdfPath(r.user, id)]);
+  } else await tx('decks', 'readwrite', (s) => s.delete(id));
+  await tx('pdfs', 'readwrite', (s) => s.delete(id));
+}
+
 export const addSession = async (id, s) => {
   const d = await getDeck(id);
   const session = { id: crypto.randomUUID(), at: new Date().toISOString(), ...s };
@@ -30,8 +74,29 @@ export const addSession = async (id, s) => {
   return session;
 };
 
+async function savePdf(id, pdf) {
+  const r = await remote();
+  if (r) must(await r.sb.storage.from('slides').upload(pdfPath(r.user, id), pdf, { contentType: 'application/pdf', upsert: true }));
+  await tx('pdfs', 'readwrite', (s) => s.put(pdf, id));
+}
+
 export async function createDeck({ title, fileName, pdf, notes, targetMinutes }) {
   const id = crypto.randomUUID();
-  await tx('pdfs', 'readwrite', (s) => s.put(pdf, id));
+  await savePdf(id, pdf);
   return putDeck({ id, title, fileName, createdAt: new Date().toISOString(), targetMinutes, wpm: 130, notes, slideTargets: null, skipped: [], slideCount: null, sessions: [] });
 }
+
+// Al iniciar sesión: sube a la cuenta las presentaciones creadas como invitado y las quita del modo local.
+export async function importLocalDecks() {
+  const local = await listLocalDecks();
+  for (const d of local) {
+    const pdf = await tx('pdfs', 'readonly', (s) => s.get(d.id));
+    if (pdf) await savePdf(d.id, pdf);
+    await putDeck(d);
+    await tx('decks', 'readwrite', (s) => s.delete(d.id));
+  }
+  return local.length;
+}
+
+// Al cerrar sesión: borrar la caché local de PDFs de la cuenta (privacidad en equipos compartidos).
+export const clearPdfCache = () => tx('pdfs', 'readwrite', (s) => s.clear());

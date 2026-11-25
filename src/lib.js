@@ -26,10 +26,10 @@ export const budgets = (deck, count) => {
 // Banda del pre-análisis: estimado vs. objetivo.
 export const band = (estSec, targetSec) => {
   const r = estSec / targetSec;
-  if (r < 0.75) return { key: 'short', label: 'Se queda corta', color: 'var(--blue)' };
-  if (r <= 0.95) return { key: 'ok', label: 'Cómoda', color: 'var(--green)' };
-  if (r <= 1.05) return { key: 'tight', label: 'Justa', color: 'var(--yellow)' };
-  return { key: 'over', label: 'Te vas a pasar', color: 'var(--red)' };
+  if (r < 0.75) return { key: 'short', label: 'Se queda corta', color: '#6d58a5' };
+  if (r <= 0.95) return { key: 'ok', label: 'Cómoda', color: '#397449' };
+  if (r <= 1.05) return { key: 'tight', label: 'Justa', color: '#b7791f' };
+  return { key: 'over', label: 'Te vas a pasar', color: '#c43c32' };
 };
 
 // Ritmo en vivo: positivo = vas adelantado (te sobra tiempo), negativo = vas tarde.

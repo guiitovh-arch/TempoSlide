@@ -38,6 +38,8 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
 });
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
+// Config pública del cliente (la anon key de Supabase es pública; la seguridad la da RLS).
+app.get('/api/config', (_req, res) => res.json({ supabaseUrl: process.env.SUPABASE_URL || null, supabaseAnonKey: process.env.SUPABASE_ANON_KEY || null }));
 app.use(express.static('dist'));
 app.get(/^\/(?!api\/).*/, (_req, res) => res.sendFile(path.resolve('dist/index.html')));
 
