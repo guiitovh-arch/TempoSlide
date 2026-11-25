@@ -80,7 +80,7 @@ export default function Dashboard() {
           <div className="stats">
             <div className="stat violet"><b>{decks?.length ?? '–'}</b><span>presentaciones</span></div>
             <div className="stat pink"><b>{totalSessions}</b><span>ensayos</span></div>
-            <div className="stat blue"><b>{fmt(totalMs)}</b><span>minutos ensayados</span></div>
+            <div className="stat blue"><b>{fmt(totalMs)}</b><span>tiempo ensayado</span></div>
           </div>
         </header>
 
