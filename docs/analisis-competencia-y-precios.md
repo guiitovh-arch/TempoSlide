@@ -23,7 +23,7 @@
 - **Indicador de ritmo** en vivo (adelantado / tarde respecto al plan acumulado).
 - Fases de color del temporizador (25% / 10% / tiempo extra).
 - **Marcas de tiempo en las notas** (`(30 s)`, `(1 min)`) → plan por diapositiva; diapositivas sin marca = anexos fuera del plan (detectado en el deck de la defensa).
-- **ppm necesarias**: si el guion no cabe, te dice a qué velocidad tendrías que hablar (ej.: tu TFM pide ~162 ppm para 12,3 min).
+- **ppm necesarias**: si el guion no cabe, te dice a qué velocidad tendrías que hablar (ej.: el guion del TFM pide ~190 ppm para 12,3 min, descontando 5 s de transición por diapositiva; a 130 ppm duraría ~18 min).
 - **Omitir diapositivas** al presentar y **dónde recortar** tras un ensayo que se pasa.
 
 ## Mejoras recomendadas (siguientes pasos)
