@@ -222,3 +222,9 @@ export async function deleteSession(deckId, sessionId) {
   if (x?.audio?.path) await (await supabase())?.storage.from(AUDIO).remove([x.audio.path]);
   return putDeck({ ...d, sessions: d.sessions.filter((s) => s.id !== sessionId) });
 }
+
+// Reemplazar el archivo: nuevo PDF; si trae notas (PPTX) sustituyen a las anteriores. El plan y los ensayos se conservan.
+export async function replaceDeckFile(id, { pdf, notes, hasNotes, main }) {
+  await savePdf(id, pdf);
+  return updateDeck(id, { fileName: main.name, slideCount: null, ...(hasNotes && { notes }) });
+}

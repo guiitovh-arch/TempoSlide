@@ -72,7 +72,7 @@ export default function Deck() {
         <header className="deck-head">
           <div className="deck-title-row full">
             <input className="title-input" aria-label="Título" value={deck.title} onChange={(e) => setDeck({ ...deck, title: e.target.value })} onBlur={(e) => save({ title: e.target.value })} />
-            <DeckMenu deck={deck} onDuplicated={(c) => nav(`/app/deck/${c.id}`)} onDeleted={() => nav('/app')} />
+            <DeckMenu deck={deck} onDuplicated={(c) => nav(`/app/deck/${c.id}`)} onDeleted={() => nav('/app')} onChanged={() => window.location.reload()} />
           </div>
           <div className="row">
             <label className="inline">Tiempo máximo

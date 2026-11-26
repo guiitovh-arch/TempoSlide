@@ -505,3 +505,13 @@ select { padding: 7px 10px; border-radius: 12px; border: 1px solid var(--line); 
 @media (max-width: 960px) { .an-grid { grid-template-columns: 1fr; } .an-config { position: static; } .an-row { grid-template-columns: 28px 1fr; } .an-row .an-bar, .an-row small { grid-column: 2; } }
 .an-result h2, .an-result h3 { text-align: left; margin: 0; }
 .an-result h3 { font-size: 1.15rem; display: flex; align-items: center; gap: 8px; }
+
+/* Biblioteca */
+.recent-head { margin-top: 28px; } .recent-head h2.left { margin: 0; }
+.lib-tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
+.search { display: flex; align-items: center; gap: 8px; flex: 1 1 260px; position: relative; }
+.search svg { position: absolute; left: 12px; color: var(--muted); }
+.search input { width: 100%; padding-left: 36px; }
+.tags { gap: 6px; } button.tag { border: 0; cursor: pointer; margin: 0; }
+.menu-busy, .menu-err { position: absolute; right: 0; top: 36px; white-space: nowrap; font-size: .78rem; padding: 4px 8px; border-radius: 8px; background: var(--soft); z-index: 5; }
+.menu-err { white-space: normal; width: 240px; color: var(--red); }

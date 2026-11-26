@@ -10,6 +10,8 @@ export const loadPdf = (id) => {
   return cache.get(id);
 };
 
+export const forgetPdf = (id) => cache.delete(id);
+
 export function usePdf(id) {
   const [doc, setDoc] = useState(null);
   useEffect(() => { setDoc(null); if (id) loadPdf(id).then(setDoc).catch(() => {}); }, [id]);
