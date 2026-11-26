@@ -67,3 +67,18 @@ export const markedTimes = (notes) => {
   });
   return t.some(Boolean) ? t : null;
 };
+
+// Estadísticas de ensayo para el perfil.
+export const rehearsalStats = (decks, today = new Date()) => {
+  const sessions = decks.flatMap((d) => d.sessions || []);
+  const totalMs = sessions.reduce((a, s) => a + s.totalMs, 0);
+  const best = sessions.length ? Math.min(...sessions.map((s) => Math.abs(s.totalMs - s.targetMs) / s.targetMs)) : null;
+  // Racha: días consecutivos con al menos un ensayo, terminando hoy o ayer.
+  const day = (d) => new Date(d).toISOString().slice(0, 10);
+  const days = new Set(sessions.map((s) => day(s.at)));
+  let streak = 0;
+  const cur = new Date(today);
+  if (!days.has(day(cur))) cur.setUTCDate(cur.getUTCDate() - 1);
+  while (days.has(day(cur))) { streak++; cur.setUTCDate(cur.getUTCDate() - 1); }
+  return { decks: decks.length, sessions: sessions.length, totalMs, best, streak };
+};

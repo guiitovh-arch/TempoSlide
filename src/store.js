@@ -100,3 +100,28 @@ export async function importLocalDecks() {
 
 // Al cerrar sesión: borrar la caché local de PDFs de la cuenta (privacidad en equipos compartidos).
 export const clearPdfCache = () => tx('pdfs', 'readwrite', (s) => s.clear());
+
+// Exportar mis datos: ZIP con un JSON de presentaciones/ensayos y los PDF.
+export async function exportData(user) {
+  const { default: JSZip } = await import('jszip');
+  const decks = await listDecks();
+  const zip = new JSZip();
+  zip.file('temposlide.json', JSON.stringify({ exportedAt: new Date().toISOString(), user: user && { id: user.id, email: user.email, name: user.user_metadata?.full_name || null }, decks }, null, 2));
+  for (const d of decks) {
+    const pdf = await getPdf(d.id).catch(() => null);
+    if (pdf) zip.file(`presentaciones/${d.title.replace(/[\\/:*?"<>|]/g, '_')}-${d.id.slice(0, 8)}.pdf`, pdf);
+  }
+  return zip.generateAsync({ type: 'blob' });
+}
+
+// Borrar la cuenta: PDF de Storage → usuario (los decks caen en cascada) → caché local.
+export async function deleteAccount() {
+  const r = await remote();
+  if (!r) throw new Error('No hay sesión');
+  const files = must(await r.sb.storage.from('slides').list(r.user.id, { limit: 1000 }));
+  if (files.length) must(await r.sb.storage.from('slides').remove(files.map((f) => `${r.user.id}/${f.name}`)));
+  must(await r.sb.from('decks').delete().eq('user_id', r.user.id));
+  must(await r.sb.rpc('delete_account'));
+  await clearPdfCache();
+  await r.sb.auth.signOut({ scope: 'local' });
+}

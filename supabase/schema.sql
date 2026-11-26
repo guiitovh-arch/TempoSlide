@@ -35,3 +35,15 @@ create policy "slides propios: actualizar" on storage.objects for update
   using (bucket_id = 'slides' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy "slides propios: borrar" on storage.objects for delete
   using (bucket_id = 'slides' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- Borrar la propia cuenta (zona peligrosa del perfil). La app borra antes los PDF de Storage;
+-- al borrar el usuario, sus filas de decks caen en cascada.
+create or replace function public.delete_account() returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  if auth.uid() is null then raise exception 'Sin sesión'; end if;
+  delete from auth.users where id = auth.uid();
+end;
+$$;
+revoke all on function public.delete_account() from public, anon;
+grant execute on function public.delete_account() to authenticated;

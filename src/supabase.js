@@ -29,3 +29,12 @@ export function useAuth() {
   }, []);
   return s;
 }
+
+export const userName = (u) => u?.user_metadata?.full_name || u?.user_metadata?.name || u?.email?.split('@')[0] || '';
+export const userAvatar = (u) => u?.user_metadata?.avatar_url || u?.user_metadata?.picture || null;
+export const userProvider = (u) => u?.app_metadata?.provider || 'email'; // 'google' | 'email'
+export const userPrefs = (u) => ({ defaultMinutes: 10, ...(u?.user_metadata?.prefs || {}) });
+
+// ponytail: plan fijo mientras la beta es gratis. Con pagos, leer el plan de una tabla que solo escriba el servidor
+// (webhook de Stripe), nunca de user_metadata, que el propio usuario puede modificar.
+export const PLAN = { key: 'beta', badge: 'BETA', name: 'Beta · todo incluido' };

@@ -2,24 +2,38 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { fmt, markedTimes } from './lib.js';
 import { listDecks, listLocalDecks, createDeck, updateDeck, importLocalDecks, clearPdfCache } from './store.js';
-import { supabase, useAuth } from './supabase.js';
+import { supabase, useAuth, userName, userPrefs, PLAN } from './supabase.js';
+import { Avatar } from './Account.jsx';
 import { pptxNotes } from './pptx.js';
 import Slide, { usePdf } from './Slide.jsx';
 import { Logo, ThemeToggle } from './Landing.jsx';
 
-function Account() {
+function UserMenu() {
   const { ready, enabled, user } = useAuth();
   const nav = useNavigate();
+  const [count, setCount] = useState(null);
   if (!ready || !enabled) return null;
   if (!user) return <Link to="/login" className="btn ghost small">Entrar</Link>;
-  const name = user.user_metadata?.full_name || user.email;
+  const close = (e) => e.currentTarget.closest('details')?.removeAttribute('open');
   return (
-    <details className="account">
-      <summary title={user.email}><span className="avatar">{name[0].toUpperCase()}</span></summary>
-      <div className="account-menu card">
-        <b>{name}</b>
-        <span className="muted small">{user.email}</span>
-        <button className="btn ghost small" onClick={async () => { await (await supabase()).auth.signOut(); await clearPdfCache(); nav('/'); }}>Cerrar sesión</button>
+    <details className="account" onToggle={(e) => e.currentTarget.open && listDecks().then((d) => setCount(d.length)).catch(() => {})}>
+      <summary title={user.email}>
+        <Avatar user={user} size={34} />
+        <span className="acc-chip-name hide-sm">{userName(user).split(' ').slice(0, 2).join(' ')}</span>
+        <span className="plan-badge hide-sm">{PLAN.badge}</span>
+        <span className="caret">▾</span>
+      </summary>
+      <div className="account-menu card" onClick={close}>
+        <div className="menu-head">
+          <b>{userName(user)}</b>
+          <span className="muted small">{user.email}</span>
+          <span className="small"><span className="plan-badge">{PLAN.badge}</span> {count === null ? '' : `${count} presentación${count === 1 ? '' : 'es'} · sin límite en la beta`}</span>
+        </div>
+        <Link to="/app/cuenta">👤 Mi cuenta</Link>
+        <Link to="/app">📁 Mis presentaciones</Link>
+        <a href="/#precios">⚡ Ver planes</a>
+        <hr />
+        <button className="menu-danger" onClick={async () => { await (await supabase()).auth.signOut(); await clearPdfCache(); nav('/'); }}>🚪 Cerrar sesión</button>
       </div>
     </details>
   );
@@ -30,7 +44,7 @@ export function AppNav({ children }) {
     <nav className="nav wrap app-nav">
       <Logo />
       <div className="nav-links"><Link to="/app">Mis presentaciones</Link></div>
-      <div className="row">{children}<ThemeToggle /><Account /></div>
+      <div className="row">{children}<ThemeToggle /><UserMenu /></div>
     </nav>
   );
 }
@@ -40,11 +54,11 @@ function Thumb({ id }) {
   return <Slide doc={doc} page={0} className="thumb" />;
 }
 
-function Upload({ onDone }) {
+function Upload({ onDone, defaultMinutes = 10 }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [drag, setDrag] = useState(false);
-  const [minutes, setMinutes] = useState(10);
+  const [minutes, setMinutes] = useState(defaultMinutes);
   const input = useRef(null);
 
   // Admite 1 archivo (PPTX/KEY/PDF…) o 2 (PDF para las diapositivas + PPTX para las notas).
@@ -135,7 +149,7 @@ export default function Dashboard() {
           <p className="notice">Estás en <b>modo invitado</b>: tus presentaciones solo viven en este navegador. <Link to="/login"><b>Crea una cuenta</b></Link> para guardarlas en la nube.</p>
         )}
         {imported > 0 && <p className="notice ok">☁️ Subimos a tu cuenta {imported} presentación{imported > 1 ? 'es' : ''} que tenías en este navegador.</p>}
-        <Upload onDone={(d) => nav(`/app/deck/${d.id}`)} />
+        <Upload key={auth.user?.id || 'guest'} defaultMinutes={userPrefs(auth.user).defaultMinutes} onDone={(d) => nav(`/app/deck/${d.id}`)} />
 
         <div className="decks">
           {decks?.length === 0 && <p className="muted">Aún no hay presentaciones. Sube la primera ☝️</p>}

@@ -299,3 +299,45 @@ p.sub { margin: -18px auto 28px; max-width: 520px; }
 .legal-nav { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); }
 .foot-links { display: flex; gap: 18px; }
 .foot-links a:hover { color: #fff; }
+
+/* Menú de usuario */
+.account summary { display: flex; align-items: center; gap: 8px; padding: 3px 10px 3px 3px; border-radius: 999px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
+.account summary::-webkit-details-marker { display: none; }
+.account .avatar { overflow: hidden; object-fit: cover; flex: none; }
+.acc-chip-name { font-weight: 600; font-size: .9rem; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.caret { color: var(--muted); font-size: .75rem; }
+.plan-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .7rem; font-weight: 800; letter-spacing: .06em; background: var(--coral-soft); color: var(--accent); }
+.account-menu { min-width: 260px; padding: 10px; gap: 2px; }
+.account-menu .menu-head { display: grid; gap: 4px; padding: 8px 10px 12px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
+.account-menu a, .account-menu button { display: block; text-align: left; padding: 9px 10px; border-radius: 10px; border: 0; background: none; cursor: pointer; font-size: .95rem; }
+.account-menu a:hover, .account-menu button:hover { background: var(--soft); }
+.account-menu hr { border: 0; border-top: 1px solid var(--line); margin: 6px 0; }
+.menu-danger { color: var(--red); width: 100%; }
+
+/* Mi cuenta */
+.acc { max-width: 760px; display: grid; gap: 16px; padding-top: 28px; }
+.acc h3 { font-size: 1.15rem; margin-bottom: 4px; }
+.acc .card { display: grid; gap: 12px; }
+.acc-identity { grid-template-columns: auto 1fr; align-items: center; gap: 20px !important; }
+.acc-identity p { margin: 0; }
+.acc-name { font-size: 1.6rem; display: flex; align-items: center; gap: 8px; }
+.icon-btn { border: 0; background: var(--soft); color: var(--muted); width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: .95rem; }
+.icon-btn:hover { color: var(--ink); }
+.text-input { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--soft); color: var(--ink); min-width: 0; }
+.kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.kpis.four { grid-template-columns: repeat(4, 1fr); }
+.kpis > div { background: var(--soft); border-radius: 14px; padding: 12px 14px; display: grid; gap: 2px; }
+.kpis span { font-size: .8rem; color: var(--muted); } .kpis b { font-family: var(--display); font-size: 1.6rem; } .kpis small { color: var(--muted); font-size: .75rem; }
+.pref-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+.pref-row p { margin: 2px 0 0; }
+.pw-form { display: grid; gap: 12px; max-width: 380px; }
+.pw-form label, .modal label { display: grid; gap: 6px; font-weight: 600; font-size: .9rem; }
+.danger-zone { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 45%, transparent), var(--shadow); }
+.danger-zone h3 { color: var(--red); }
+.btn.danger-btn { background: #c43c32; color: #fff; }
+.modal-bg { position: fixed; inset: 0; background: #0009; backdrop-filter: blur(4px); display: grid; place-items: center; padding: 16px; z-index: 50; }
+.modal { max-width: 460px; width: 100%; display: grid; gap: 14px; }
+.modal p { margin: 0; line-height: 1.5; }
+.notfound { min-height: 60vh; display: grid; place-content: center; justify-items: center; text-align: center; gap: 12px; }
+.big-404 { font-family: var(--mono); font-size: 6rem; font-weight: 700; color: var(--coral); line-height: 1; }
+@media (max-width: 600px) { .kpis.four { grid-template-columns: 1fr 1fr; } .pref-row { flex-direction: column; align-items: flex-start; } .acc-identity { grid-template-columns: 1fr; } }

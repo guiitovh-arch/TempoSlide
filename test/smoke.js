@@ -1,7 +1,7 @@
 // Comprobación mínima: lógica de tiempos + extracción de notas del PPTX de prueba.
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
-import { fmt, estimateSlides, budgets, band, pace, phase, perSlide, cuts, markedTimes } from '../src/lib.js';
+import { fmt, estimateSlides, budgets, band, pace, phase, perSlide, cuts, markedTimes, rehearsalStats } from '../src/lib.js';
 import { pptxNotes } from '../src/pptx.js';
 
 assert.equal(fmt(65_000), '01:05');
@@ -51,4 +51,11 @@ if (await fs.stat(tfmPath).catch(() => null)) {
 const n = await pptxNotes(await fs.readFile(new URL('./tfm-demo.pptx', import.meta.url)));
 assert.equal(n.length, 6);
 assert.match(n[0], /^Buenos días, tribunal/);
+const st = rehearsalStats([
+  { sessions: [{ at: '2026-11-26T10:00:00Z', totalMs: 600_000, targetMs: 600_000 }, { at: '2026-11-25T10:00:00Z', totalMs: 660_000, targetMs: 600_000 }] },
+  { sessions: [{ at: '2026-11-23T10:00:00Z', totalMs: 300_000, targetMs: 600_000 }] },
+], new Date('2026-11-26T20:00:00Z'));
+assert.deepEqual([st.decks, st.sessions, st.best, st.streak], [2, 3, 0, 2]); // racha 25-26, rota el 24
+assert.equal(rehearsalStats([{ sessions: [{ at: '2026-11-25T10:00:00Z', totalMs: 1, targetMs: 1 }] }], new Date('2026-11-26T09:00:00Z')).streak, 1); // ayer cuenta
+assert.equal(rehearsalStats([]).best, null);
 console.log('✓ smoke OK');
