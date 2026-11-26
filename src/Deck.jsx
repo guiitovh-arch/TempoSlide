@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { fmt, words, estimateSlides, budgets, band, perSlide, cuts } from './lib.js';
-import { getDeck, updateDeck, deleteDeck, putDeck } from './store.js';
+import { fmt, words, estimateSlides, budgets, perSlide, cuts, analyze, trimPlan, CONTEXTS } from './lib.js';
+import { getDeck, updateDeck, putDeck } from './store.js';
+import { Play, ScrollText } from 'lucide-react';
+import DeckMenu from './DeckMenu.jsx';
 import Slide, { usePdf } from './Slide.jsx';
 import { AppNav } from './Dashboard.jsx';
+
+const VERDICTS = {
+  short: { label: 'Se queda corta', color: '#6d58a5' },
+  ok: { label: 'Cómoda', color: '#397449' },
+  tight: { label: 'Justa', color: '#b7791f' },
+  over: { label: 'Te vas a pasar', color: '#c43c32' },
+};
 
 export default function Deck() {
   const { id } = useParams();
@@ -34,7 +43,11 @@ export default function Deck() {
   const skipped = deck.skipped || [];
   const excluded = Array.from({ length: count }, (_, i) => !!skipped[i] || (!!deck.slideTargets && plan[i] === 0)); // omitidas o anexos
   const est = count ? estimateSlides(deck.notes, count, deck.wpm, excluded).reduce((a, b) => a + b, 0) : 0;
-  const b = band(est, deck.targetMinutes * 60);
+  const targetSec = deck.targetMinutes * 60;
+  const A = analyze(est, targetSec, deck.context);
+  const V = VERDICTS[A.verdict];
+  const trim = A.mid > targetSec ? trimPlan(deck.notes, excluded, A.mid - targetSec, deck.wpm || 130) : null;
+  const lastRun = deck.sessions.at(-1);
   const session = deck.sessions.find((s) => s.id === sel) || deck.sessions.at(-1);
   const real = session ? perSlide(session.slides, count) : [];
   const toCut = session && session.totalMs > session.targetMs ? cuts(plan, real) : [];
@@ -58,12 +71,15 @@ export default function Deck() {
     <div className="app">
       <AppNav>
         <span className="muted small">{saved}</span>
-        <Link className="btn ghost" to={`/present/${id}?prompter=1`}>📜 Ensayar con teleprompter</Link>
-        <Link className="btn primary" to={`/present/${id}`}>▶ Presentar</Link>
+        <Link className="btn ghost" to={`/present/${id}?prompter=1`}><ScrollText size={16} /> <span className="hide-sm">Ensayar con teleprompter</span></Link>
+        <Link className="btn coral" to={`/present/${id}`}><Play size={16} /> Presentar</Link>
       </AppNav>
       <main className="wrap">
         <header className="deck-head">
-          <input className="title-input" value={deck.title} onChange={(e) => setDeck({ ...deck, title: e.target.value })} onBlur={(e) => save({ title: e.target.value })} />
+          <div className="deck-title-row full">
+            <input className="title-input" aria-label="Título" value={deck.title} onChange={(e) => setDeck({ ...deck, title: e.target.value })} onBlur={(e) => save({ title: e.target.value })} />
+            <DeckMenu deck={deck} onDuplicated={(c) => nav(`/app/deck/${c.id}`)} onDeleted={() => nav('/app')} />
+          </div>
           <div className="row">
             <label className="inline">Tiempo máximo
               <input type="number" min="1" step="0.5" value={deck.targetMinutes} onChange={(e) => save({ targetMinutes: +e.target.value || 1, slideTargets: null })} /> min
@@ -71,23 +87,47 @@ export default function Deck() {
             <label className="inline">Ritmo de habla
               <input type="number" min="60" max="220" value={deck.wpm || 130} onChange={(e) => save({ wpm: +e.target.value || 130, slideTargets: null })} /> ppm
             </label>
+            <label className="inline">Contexto
+              <select value={deck.context || 'defensa'} onChange={(e) => save({ context: e.target.value })}>
+                {Object.entries(CONTEXTS).map(([k, c]) => <option key={k} value={k}>{c.label}</option>)}
+              </select>
+            </label>
             {deck.timesFromNotes && deck.slideTargets && <span className="chip green">⏱ Tiempos importados de tus notas</span>}
             {deck.slideTargets && <button className="btn ghost small" onClick={() => save({ slideTargets: null })}>↺ Reparto automático</button>}
-            <button className="btn ghost small danger" onClick={async () => { if (confirm('¿Borrar esta presentación y sus ensayos?')) { await deleteDeck(id); nav('/app'); } }}>Borrar</button>
           </div>
         </header>
 
         <section className="grid2">
           <div className="card analysis">
-            <span className="eyebrow">Pre-análisis</span>
-            <div className="big-num">{fmt(est * 1000)}</div>
-            <p>duración estimada para <b>{deck.targetMinutes} min</b> disponibles</p>
-            <span className="chip" style={{ background: b.color }}>{b.label}</span>
+            <div className="row between"><span className="eyebrow">Pre-análisis</span><span className="chip" style={{ background: V.color }}>{V.label}</span></div>
+            <div className="big-num">{fmt(A.mid * 1000)}</div>
+            <p className="muted">entre <b>{fmt(A.lo * 1000)}</b> y <b>{fmt(A.hi * 1000)}</b> según tu ritmo del día</p>
+            <div className="usage" title={`${Math.round(A.pct * 100)} % del tiempo`}>
+              <i style={{ width: `${Math.min(100, (A.pct / 1.3) * 100)}%`, background: V.color }} />
+              <span className="usage-limit" style={{ left: `${100 / 1.3}%` }} />
+            </div>
+            <p>Ocupa el <b>{Math.round(A.pct * 100)} %</b> de tus {deck.targetMinutes.toLocaleString('es')} min: {A.mid > targetSec ? <>te pasas unos <b>{fmt((A.mid - targetSec) * 1000)}</b></> : <>te sobran <b>{fmt((targetSec - A.mid) * 1000)}</b></>}. Probabilidad de pasarte: <b>{Math.round(A.pOver * 100)} %</b>.</p>
+            {A.verdict === 'short' && A.suggestMin < deck.targetMinutes && (
+              <p className="tip">Te bastan <b>{A.suggestMin} min</b> incluso con un ritmo lento. <button className="btn ghost small" onClick={() => save({ targetMinutes: A.suggestMin, slideTargets: null })}>Usar {A.suggestMin} min</button></p>
+            )}
+            {trim && hasNotes && (
+              <div className="tip">
+                <b>✂️ Qué recortar:</b> unas <b>{trim.toCut} palabras</b> de guion (o hablar a {requiredWpm} ppm). Donde más se nota:
+                <ul>{trim.slides.map((x) => <li key={x.index}>Diapositiva {x.index + 1}: −{x.cut} de {x.words} palabras</li>)}</ul>
+                {trim.rest > 0 && <p className="small">Aun así faltarían ~{trim.rest} palabras: plantéate omitir alguna diapositiva o pedir más tiempo.</p>}
+              </div>
+            )}
+            <label className="inline guess">Creo que dura
+              <input type="number" min="0" step="0.5" placeholder="?" value={deck.guessMinutes ?? ''} onChange={(e) => save({ guessMinutes: e.target.value === '' ? null : +e.target.value })} /> min
+            </label>
+            {deck.guessMinutes > 0 && (
+              <p className="small">Creías {deck.guessMinutes} min; la estimación es {fmt(A.mid * 1000)} ({A.mid > deck.guessMinutes * 60 ? 'te quedabas corto' : 'te pasabas'} por {fmt(Math.abs(A.mid - deck.guessMinutes * 60) * 1000)}).</p>
+            )}
+            {lastRun && <p className="small">⏱ Último ensayo real: <b>{fmt(lastRun.totalMs)}</b> · estimado {fmt(A.mid * 1000)} ({fmt(lastRun.totalMs - A.mid * 1000, true)}).</p>}
+            {best && deck.sessions.length > 1 && <p className="small">🏆 Mejor ensayo: <b>{fmt(best.totalMs)}</b> de {deck.sessions.length}.</p>}
             <p className="muted small">
-              {hasNotes ? `Basado en ${deck.notes.reduce((a, n, i) => a + (excluded[i] ? 0 : words(n)), 0)} palabras de notas a ${deck.wpm || 130} ppm + transiciones${skipped.some(Boolean) ? ` · ${skipped.filter(Boolean).length} diapositivas omitidas` : ''}.` : 'Sin notas del orador: añade tu guion abajo para una estimación precisa (y para el teleprompter).'}
+              {hasNotes ? `Basado en ${scriptWords} palabras de notas a ${deck.wpm || 130} ppm + transiciones, contexto «${CONTEXTS[deck.context || 'defensa'].label}»${skipped.some(Boolean) ? ` · ${skipped.filter(Boolean).length} diapositivas omitidas` : ''}.` : 'Sin notas del orador: añade tu guion abajo para una estimación precisa (y para el teleprompter).'}
             </p>
-            {hasNotes && b.key === 'over' && <p className="small">Para cuadrar tendrías que hablar a <b>{requiredWpm} ppm</b> o recortar guion.</p>}
-            {best && <p className="small">🏆 Mejor ensayo: <b>{fmt(best.totalMs)}</b> ({deck.sessions.length} ensayos en total)</p>}
           </div>
           <div className="card">
             <span className="eyebrow">Ensayos</span>

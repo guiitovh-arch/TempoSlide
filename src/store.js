@@ -125,3 +125,19 @@ export async function deleteAccount() {
   await clearPdfCache();
   await r.sb.auth.signOut({ scope: 'local' });
 }
+
+// Duplicar: misma presentación (PDF, notas, plan) sin ensayos.
+export async function duplicateDeck(id) {
+  const d = await getDeck(id);
+  const pdf = await getPdf(id);
+  const copy = await createDeck({ title: `${d.title} (copia)`, fileName: d.fileName, pdf, notes: d.notes, targetMinutes: d.targetMinutes });
+  const { id: _i, createdAt: _c, sessions: _s, title: _t, ...rest } = d;
+  return putDeck({ ...copy, ...rest });
+}
+
+export async function downloadPdf(d) {
+  const blob = await getPdf(d.id);
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `${d.title}.pdf` });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}

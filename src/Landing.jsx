@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fmt } from './lib.js';
 import Demo from './Demo.jsx';
+import { useAuth } from './supabase.js';
+import { Menu } from 'lucide-react';
 
 const systemTheme = () => (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 export function ThemeToggle() {
@@ -15,9 +17,22 @@ export function ThemeToggle() {
   return <button className="theme-toggle" onClick={flip} aria-label={t === 'dark' ? 'Activar modo claro' : 'Activar modo nocturno'} title={t === 'dark' ? 'Modo claro' : 'Modo nocturno'}>{t === 'dark' ? '☀️' : '🌙'}</button>;
 }
 
-export const Logo = () => (
-  <Link to="/" className="logo">
-    <span className="logo-mark">◔</span> TempoSlide
+// Logo A2 · diapositiva-cronómetro (SVG, igual en todos los sistemas). public/favicon.svg es el mismo dibujo.
+export const LogoMark = ({ size = 32 }) => (
+  <svg viewBox="0 0 64 64" width={size} height={size} aria-hidden="true" className="logo-mark">
+    <defs><linearGradient id="ts-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#3D1E39" /><stop offset="1" stopColor="#FF8A72" /></linearGradient></defs>
+    <rect width="64" height="64" rx="16" fill="url(#ts-g)" />
+    <rect x="27" y="10" width="10" height="4.5" rx="2.25" fill="#fff" />
+    <rect x="30.5" y="13" width="3" height="6" fill="#fff" />
+    <rect x="11" y="19" width="42" height="30" rx="6" fill="none" stroke="#fff" strokeWidth="4" />
+    <path d="M32 34 L40.5 27.5" stroke="#fff" strokeWidth="4" strokeLinecap="round" />
+    <circle cx="32" cy="34" r="3.6" fill="#fff" />
+  </svg>
+);
+
+export const Logo = ({ to = '/' }) => (
+  <Link to={to} className="logo" aria-label="TempoSlide">
+    <LogoMark /> <span>Tempo<span className="logo-slide">Slide</span></span>
   </Link>
 );
 
@@ -85,7 +100,7 @@ const features = [
   { c: 'plum', i: '📈', t: 'Informe de ensayos', d: 'Compara cada ensayo con tu plan, diapositiva a diapositiva. Ve cómo mejoras de un ensayo a otro.' },
 ];
 
-const plans = [
+export const plans = [
   { n: 'Gratis', p: '0 €', s: 'para siempre', f: ['2 presentaciones', 'Temporizador + cronómetro por diapositiva', 'Teleprompter básico', 'Últimos 3 ensayos guardados'], cta: 'Empezar gratis' },
   { n: 'Pase Defensa', p: '4,99 €', s: 'pago único · 30 días', hot: true, f: ['Todo Pro durante 30 días', 'Perfecto para tu TFM, TFG o pitch', 'Sin suscripción, no se renueva', 'Tus datos se quedan contigo'], cta: 'Preparar mi defensa' },
   { n: 'Pro', p: '6,99 €', s: '/ mes · o 49 € / año', f: ['Presentaciones ilimitadas', 'Historial completo e informes', 'Pantalla de público + atajos', 'Teleprompter avanzado (espejo, auto-ritmo)'], cta: 'Probar Pro' },
@@ -101,22 +116,36 @@ const faqs = [
   ['¿En qué se diferencia de un calculador de tiempo?', 'Los calculadores estiman una cifra. TempoSlide además te acompaña en directo: cuenta atrás, ritmo por diapositiva, teleprompter e informe de cada ensayo.'],
 ];
 
+const LANDING_LINKS = [
+  ['#funciones', 'Funciones'], ['#demo', 'Pruébalo'], ['#precios', 'Precios'], ['#faq', 'Preguntas'],
+].map(([h, t]) => <a key={h} href={h}>{t}</a>);
+
+// Un solo botón de entrada: con sesión (o sin cuentas activadas) lleva a la app; sin sesión, al login.
+function EnterButton() {
+  const { ready, enabled, user } = useAuth();
+  return <Link to={!ready || user || !enabled ? '/app' : '/login'} className="btn coral">{user ? 'Ir a la app' : 'Entrar'}</Link>;
+}
+
+// Menú lateral en pantallas estrechas (las mismas secciones que la barra).
+export function MobileMenu({ children }) {
+  return (
+    <details className="mobile-menu" onClick={(e) => e.target.closest('a') && e.currentTarget.removeAttribute('open')}>
+      <summary aria-label="Abrir menú"><Menu size={20} /></summary>
+      <nav className="mobile-panel card">{children}</nav>
+    </details>
+  );
+}
+
 export default function Landing() {
   return (
     <div className="landing">
       <nav className="nav wrap">
         <Logo />
-        <div className="nav-links">
-          <a href="#funciones">Funciones</a>
-          <a href="#como">Cómo funciona</a>
-          <a href="#demo">Pruébalo</a>
-          <a href="#precios">Precios</a>
-          <a href="#faq">FAQ</a>
-        </div>
+        <div className="nav-links">{LANDING_LINKS}</div>
         <div className="row">
           <ThemeToggle />
-          <Link to="/login" className="btn ghost small hide-sm">Entrar</Link>
-          <Link to="/app" className="btn dark">Abrir app</Link>
+          <MobileMenu>{LANDING_LINKS}</MobileMenu>
+          <EnterButton />
         </div>
       </nav>
 

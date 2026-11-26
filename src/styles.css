@@ -67,8 +67,9 @@ input[type=range], input[type=checkbox] { accent-color: var(--coral); }
 .nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 18px; padding-bottom: 18px; }
 .nav-links { display: flex; gap: 22px; font-weight: 500; color: var(--muted); }
 .nav-links a:hover { color: var(--ink); }
-.logo { font-family: var(--display); font-weight: 800; font-size: 1.3rem; display: inline-flex; align-items: center; gap: 8px; }
-.logo-mark { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; color: #fff; background: linear-gradient(135deg, var(--plum-bg), var(--coral)); font-size: 1.1rem; }
+.logo { font-family: var(--display); font-weight: 800; font-size: 1.3rem; letter-spacing: -0.03em; display: inline-flex; align-items: center; gap: 8px; }
+.logo-mark { display: block; flex: none; border-radius: 10px; }
+.logo-slide { color: var(--coral); }
 
 /* Landing */
 .hero { display: grid; grid-template-columns: 1.05fr 1fr; gap: 48px; align-items: center; padding-top: 48px; padding-bottom: 56px; }
@@ -341,3 +342,69 @@ p.sub { margin: -18px auto 28px; max-width: 520px; }
 .notfound { min-height: 60vh; display: grid; place-content: center; justify-items: center; text-align: center; gap: 12px; }
 .big-404 { font-family: var(--mono); font-size: 6rem; font-weight: 700; color: var(--coral); line-height: 1; }
 @media (max-width: 600px) { .kpis.four { grid-template-columns: 1fr 1fr; } .pref-row { flex-direction: column; align-items: flex-start; } .acc-identity { grid-template-columns: 1fr; } }
+
+/* Menú móvil */
+.mobile-menu { display: none; position: relative; }
+.mobile-menu summary { list-style: none; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); cursor: pointer; }
+.mobile-menu summary::-webkit-details-marker { display: none; }
+.mobile-panel { position: absolute; right: 0; top: 46px; z-index: 20; min-width: 220px; padding: 8px; display: grid; }
+.mobile-panel a { padding: 10px 12px; border-radius: 10px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+.mobile-panel a:hover, .mobile-panel a.active { background: var(--soft); }
+@media (max-width: 960px) { .mobile-menu { display: block; } }
+
+/* Barra de la app, menús ⋯ e iconos */
+.app-links a { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; }
+.app-links a.active { background: var(--soft); color: var(--ink); }
+.account-menu a, .account-menu button, .menu-pop button { display: flex; align-items: center; gap: 10px; }
+.deck-title-row { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.deck-title-row h3 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meta span { display: inline-flex; align-items: center; gap: 4px; }
+.deck-menu { position: relative; flex: none; }
+.menu-pop { position: absolute; right: 0; top: 36px; z-index: 15; min-width: 190px; padding: 8px; display: grid; gap: 2px; }
+.menu-pop button { width: 100%; text-align: left; padding: 9px 10px; border: 0; border-radius: 10px; background: none; cursor: pointer; font-size: .92rem; }
+.menu-pop button:hover { background: var(--soft); }
+.menu-pop hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+.icon-btn { display: inline-grid; place-items: center; }
+.deck-link { min-width: 0; } .deck-link:hover h3 { color: var(--accent); }
+
+/* Analizador */
+.analysis { display: grid; gap: 8px; align-content: start; }
+.analysis p { margin: 0; line-height: 1.5; }
+.analysis .big-num { line-height: 1; margin-top: 4px; }
+.usage { position: relative; height: 10px; border-radius: 9px; background: var(--soft); margin: 6px 0; }
+.usage i { display: block; height: 100%; border-radius: 9px; transition: width .3s; }
+.usage-limit { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); border-radius: 2px; }
+.tip { background: var(--soft); border-radius: 14px; padding: 10px 14px; font-size: .92rem; line-height: 1.5; display: block; }
+.tip ul { margin: 4px 0 0; padding-left: 18px; }
+.tip .btn { margin-left: 6px; }
+.guess { margin-top: 4px; }
+select { padding: 7px 10px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; }
+.deck-title-row.full { flex: 1 1 100%; }
+
+.shortcuts dl { margin: 0; display: grid; gap: 8px; }
+.shortcuts dl div { display: grid; grid-template-columns: 170px 1fr; gap: 10px; align-items: center; }
+.shortcuts dt { display: flex; gap: 4px; flex-wrap: wrap; } .shortcuts dd { margin: 0; }
+.shortcuts kbd { background: var(--soft); border-color: var(--line); color: var(--ink); }
+.present .modal { color: var(--ink); }
+
+/* Ensayos, temporizador, planes */
+.empty { display: grid; gap: 14px; justify-items: start; }
+.empty p { margin: 0; }
+.table-card { padding: 8px; overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; font-size: .93rem; }
+.table th { text-align: left; font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 10px 12px; }
+.table td { padding: 12px; border-top: 1px solid var(--line); white-space: nowrap; }
+.mono { font-family: var(--mono); font-weight: 700; }
+.timer-box { --tbg: #2a1f2c; background: var(--tbg); color: #fff; border-radius: 28px; padding: 28px; display: grid; gap: 16px; justify-items: center; text-align: center; transition: background .5s; }
+.timer-box:fullscreen { border-radius: 0; place-content: center; }
+.timer-box.phase-warn { --tbg: #4a3510; } .timer-box.phase-danger { --tbg: #5a1a16; } .timer-box.phase-over { --tbg: #7a1712; }
+.timer-box label.inline { color: #ffffffbb; }
+.timer-presets { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; }
+.timer-display { font-family: var(--mono); font-weight: 700; font-size: clamp(4.5rem, 16vw, 11rem); line-height: 1; letter-spacing: -.04em; }
+.timer-box:fullscreen .timer-display { font-size: 28vw; }
+.timer-box.phase-over .timer-display { animation: pulse 1s infinite; }
+.timer-sub { margin: 0; color: #ffffffaa; }
+.timer-box .p-progress { width: min(560px, 100%); }
+.timer-keys { margin: 0; color: #ffffff88; font-size: .85rem; }
+.notice svg { vertical-align: -3px; }
+@media (max-width: 960px) { .app-links { display: none; } }

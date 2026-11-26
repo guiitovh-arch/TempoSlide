@@ -1,7 +1,7 @@
 // Comprobación mínima: lógica de tiempos + extracción de notas del PPTX de prueba.
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
-import { fmt, estimateSlides, budgets, band, pace, phase, perSlide, cuts, markedTimes, rehearsalStats } from '../src/lib.js';
+import { fmt, estimateSlides, budgets, band, pace, phase, perSlide, cuts, markedTimes, rehearsalStats, analyze, trimPlan } from '../src/lib.js';
 import { pptxNotes } from '../src/pptx.js';
 
 assert.equal(fmt(65_000), '01:05');
@@ -58,4 +58,16 @@ const st = rehearsalStats([
 assert.deepEqual([st.decks, st.sessions, st.best, st.streak], [2, 3, 0, 2]); // racha 25-26, rota el 24
 assert.equal(rehearsalStats([{ sessions: [{ at: '2026-11-25T10:00:00Z', totalMs: 1, targetMs: 1 }] }], new Date('2026-11-26T09:00:00Z')).streak, 1); // ayer cuenta
 assert.equal(rehearsalStats([]).best, null);
+const a = analyze(600, 600);
+assert.equal(a.verdict, 'tight');
+assert.ok(Math.abs(a.pOver - 0.5) < 0.01); // justo en el límite: 50 %
+assert.ok(analyze(400, 600).pOver < 0.01 && analyze(400, 600).verdict === 'short');
+assert.ok(analyze(800, 600).pOver > 0.95 && analyze(800, 600).verdict === 'over');
+assert.equal(analyze(600, 600, 'reunion').mid, 690);
+const tp = trimPlan(['a '.repeat(100), 'b '.repeat(300), 'c '.repeat(50)], [false, false, false], 60, 130, 2);
+assert.equal(tp.toCut, 130);
+assert.deepEqual(tp.slides.map((x) => [x.index, x.cut]), [[1, 98], [0, 33]]);
+assert.equal(tp.rest, 0);
+const big = trimPlan(['a '.repeat(100)], [false], 600); // 1300 palabras sobre 100 disponibles
+assert.deepEqual([big.slides[0].cut, big.rest], [40, 1260]); // nunca más del 40 % de una diapositiva
 console.log('✓ smoke OK');

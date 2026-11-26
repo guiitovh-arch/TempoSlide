@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { User, FolderOpen, Sparkles, LogOut, Home, History, Timer, Clock, Layers, Repeat } from 'lucide-react';
+import DeckMenu from './DeckMenu.jsx';
 import { fmt, markedTimes } from './lib.js';
 import { listDecks, listLocalDecks, createDeck, updateDeck, importLocalDecks, clearPdfCache } from './store.js';
 import { supabase, useAuth, userName, userPrefs, PLAN } from './supabase.js';
 import { Avatar } from './Account.jsx';
 import { pptxNotes } from './pptx.js';
 import Slide, { usePdf } from './Slide.jsx';
-import { Logo, ThemeToggle } from './Landing.jsx';
+import { Logo, ThemeToggle, MobileMenu } from './Landing.jsx';
 
 function UserMenu() {
   const { ready, enabled, user } = useAuth();
@@ -29,22 +31,25 @@ function UserMenu() {
           <span className="muted small">{user.email}</span>
           <span className="small"><span className="plan-badge">{PLAN.badge}</span> {count === null ? '' : `${count} presentación${count === 1 ? '' : 'es'} · sin límite en la beta`}</span>
         </div>
-        <Link to="/app/cuenta">👤 Mi cuenta</Link>
-        <Link to="/app">📁 Mis presentaciones</Link>
-        <a href="/#precios">⚡ Ver planes</a>
+        <Link to="/app/cuenta"><User size={16} /> Mi cuenta</Link>
+        <Link to="/app"><FolderOpen size={16} /> Mis presentaciones</Link>
+        <Link to="/app/planes"><Sparkles size={16} /> Ver planes</Link>
         <hr />
-        <button className="menu-danger" onClick={async () => { await (await supabase()).auth.signOut(); await clearPdfCache(); nav('/'); }}>🚪 Cerrar sesión</button>
+        <button className="menu-danger" onClick={async () => { await (await supabase()).auth.signOut(); await clearPdfCache(); nav('/'); }}><LogOut size={16} /> Cerrar sesión</button>
       </div>
     </details>
   );
 }
 
+const APP_LINKS = [['/app', 'Inicio', Home], ['/app/ensayos', 'Ensayos', History], ['/app/temporizador', 'Temporizador', Timer]]
+  .map(([to, t, I]) => <NavLink key={to} to={to} end><I size={16} /> {t}</NavLink>);
+
 export function AppNav({ children }) {
   return (
     <nav className="nav wrap app-nav">
-      <Logo />
-      <div className="nav-links"><Link to="/app">Mis presentaciones</Link></div>
-      <div className="row">{children}<ThemeToggle /><UserMenu /></div>
+      <Logo to="/app" />
+      <div className="nav-links app-links">{APP_LINKS}</div>
+      <div className="row">{children}<ThemeToggle /><MobileMenu>{APP_LINKS}</MobileMenu><UserMenu /></div>
     </nav>
   );
 }
@@ -117,6 +122,7 @@ export default function Dashboard() {
   const nav = useNavigate();
   const auth = useAuth();
   const [imported, setImported] = useState(0);
+  const [renaming, setRenaming] = useState(null);
   useEffect(() => {
     if (!auth.ready) return;
     (async () => {
@@ -157,14 +163,21 @@ export default function Dashboard() {
             const last = d.sessions.at(-1);
             const delta = last ? last.totalMs - d.targetMinutes * 60_000 : null;
             return (
-              <Link key={d.id} to={`/app/deck/${d.id}`} className="deck card">
-                <Thumb id={d.id} />
+              <div key={d.id} className="deck card">
+                <Link to={`/app/deck/${d.id}`} tabIndex={-1} aria-hidden="true"><Thumb id={d.id} /></Link>
                 <div className="deck-info">
-                  <h3>{d.title}</h3>
-                  <div className="row small muted">
-                    <span>⏳ {d.targetMinutes} min</span>
-                    <span>🗂 {d.slideCount ?? '…'} diap.</span>
-                    <span>🔁 {d.sessions.length} ensayos</span>
+                  <div className="deck-title-row">
+                    {renaming === d.id ? (
+                      <input className="text-input grow" defaultValue={d.title} autoFocus aria-label="Nuevo nombre"
+                        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setRenaming(null); }}
+                        onBlur={async (e) => { const t = e.target.value.trim(); setRenaming(null); if (t && t !== d.title) { await updateDeck(d.id, { title: t }); setDecks(await listDecks()); } }} />
+                    ) : <Link to={`/app/deck/${d.id}`} className="deck-link"><h3>{d.title}</h3></Link>}
+                    <DeckMenu deck={d} onRename={() => setRenaming(d.id)} onDuplicated={async () => setDecks(await listDecks())} onDeleted={async () => setDecks(await listDecks())} />
+                  </div>
+                  <div className="row small muted meta">
+                    <span><Clock size={14} /> {d.targetMinutes.toLocaleString('es')} min</span>
+                    <span><Layers size={14} /> {d.slideCount ?? '…'} diap.</span>
+                    <span><Repeat size={14} /> {d.sessions.length} ensayos</span>
                   </div>
                   {last && (
                     <span className={`chip ${delta > 0 ? 'red' : 'green'}`}>
@@ -172,7 +185,7 @@ export default function Dashboard() {
                     </span>
                   )}
                 </div>
-              </Link>
+              </div>
             );
           })}
         </div>

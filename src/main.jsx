@@ -8,6 +8,7 @@ import Audience from './Audience.jsx';
 import Login from './Login.jsx';
 import { Privacy, Terms } from './Legal.jsx';
 import Account, { NotFound } from './Account.jsx';
+import { Rehearsals, Timer, Plans } from './Pages.jsx';
 import './styles.css';
 
 createRoot(document.getElementById('root')).render(
@@ -16,6 +17,9 @@ createRoot(document.getElementById('root')).render(
       <Route path="/" element={<Landing />} />
       <Route path="/app" element={<Dashboard />} />
       <Route path="/app/cuenta" element={<Account />} />
+      <Route path="/app/ensayos" element={<Rehearsals />} />
+      <Route path="/app/temporizador" element={<Timer />} />
+      <Route path="/app/planes" element={<Plans />} />
       <Route path="/login" element={<Login />} />
       <Route path="/privacidad" element={<Privacy />} />
       <Route path="/terminos" element={<Terms />} />

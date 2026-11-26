@@ -4,6 +4,17 @@ import { fmt, budgets, pace, phase } from './lib.js';
 import { getDeck, addSession } from './store.js';
 import Slide, { usePdf } from './Slide.jsx';
 
+const SHORTCUTS = [
+  [['Enter', 'S'], 'Iniciar el temporizador'],
+  [['→', 'Espacio', 'Av Pág'], 'Siguiente diapositiva'],
+  [['←', 'Re Pág'], 'Diapositiva anterior'],
+  [['P'], 'Pausar / reanudar'],
+  [['T'], 'Mostrar u ocultar el teleprompter'],
+  [['B', '.'], 'Pantalla en negro'],
+  [['F'], 'Pantalla completa'],
+  [['?'], 'Ver estos atajos'],
+];
+
 export default function Present() {
   const { id } = useParams();
   const [q] = useSearchParams();
@@ -21,6 +32,7 @@ export default function Present() {
   const [pSize, setPSize] = useState(34);
   const [pMirror, setPMirror] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [help, setHelp] = useState(false);
 
   // Reloj: acumulado + tramo actual (las pausas no cuentan).
   const clock = useRef({ acc: 0, seg: 0, lapStart: 0, laps: [] });
@@ -101,6 +113,8 @@ export default function Present() {
       else if (k === 't' || k === 'T') setPrompter((x) => !x);
       else if (k === 'b' || k === 'B' || k === '.') setBlack((x) => !x);
       else if (k === 'f' || k === 'F') fullscreen();
+      else if (k === '?') setHelp((x) => !x);
+      else if (k === 'Escape') setHelp(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -147,9 +161,23 @@ export default function Present() {
           <button className={`btn glass small ${prompter ? 'on' : ''}`} onClick={() => setPrompter(!prompter)} title="T">📜 Teleprompter</button>
           <button className={`btn glass small ${black ? 'on' : ''}`} onClick={() => setBlack(!black)} title="B">⬛ Negro</button>
           <button className="btn glass small" onClick={openAudience}>🖥️ Pantalla público</button>
-          <button className="btn glass small" onClick={fullscreen} title="F">⛶</button>
+          <button className="btn glass small" onClick={fullscreen} title="Pantalla completa (F)">⛶</button>
+          <button className="btn glass small" onClick={() => setHelp(!help)} title="Atajos de teclado (?)" aria-label="Atajos de teclado">?</button>
         </div>
       </header>
+
+      {help && (
+        <div className="modal-bg" onClick={() => setHelp(false)}>
+          <div className="modal card shortcuts" role="dialog" aria-modal="true" aria-label="Atajos de teclado" onClick={(e) => e.stopPropagation()}>
+            <h3>Atajos de teclado</h3>
+            <dl>
+              {SHORTCUTS.map(([k, d]) => <div key={d}><dt>{k.map((x) => <kbd key={x}>{x}</kbd>)}</dt><dd>{d}</dd></div>)}
+            </dl>
+            <p className="muted small">Los mandos de presentación (clickers) funcionan: envían Re Pág / Av Pág.</p>
+            <button className="btn primary" onClick={() => setHelp(false)}>Entendido</button>
+          </div>
+        </div>
+      )}
 
       <div className={`p-main ${prompter ? 'with-prompter' : ''} ${prompter && pBig ? 'prompter-big' : ''}`}>
         <section className="p-stage">
