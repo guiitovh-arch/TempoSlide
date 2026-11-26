@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { supabase, useAuth } from './supabase.js';
 import { Logo, ThemeToggle } from './Landing.jsx';
@@ -7,6 +7,13 @@ export default function Login() {
   const auth = useAuth();
   const [email, setEmail] = useState('');
   const [state, setState] = useState(''); // '', 'sending', 'sent', error text
+  const [googleOn, setGoogleOn] = useState(false);
+  // Mostrar Google solo si está activado en el proyecto de Supabase.
+  useEffect(() => {
+    fetch('/api/config').then((r) => r.json())
+      .then((c) => c.supabaseUrl && fetch(`${c.supabaseUrl}/auth/v1/settings`, { headers: { apikey: c.supabaseAnonKey } }).then((r) => r.json()))
+      .then((st) => setGoogleOn(!!st?.external?.google)).catch(() => {});
+  }, []);
   if (auth.user) return <Navigate to="/app" replace />;
   const redirectTo = `${location.origin}/app`;
 
@@ -34,8 +41,10 @@ export default function Login() {
           <p className="notice ok">📬 Te enviamos un enlace a <b>{email}</b>. Ábrelo desde este dispositivo para entrar.</p>
         ) : (
           <>
-            <button className="btn ghost big full" onClick={google}><span className="g">G</span> Continuar con Google</button>
-            <div className="or"><span>o con tu correo</span></div>
+            {googleOn && (<>
+              <button className="btn ghost big full" onClick={google}><span className="g">G</span> Continuar con Google</button>
+              <div className="or"><span>o con tu correo</span></div>
+            </>)}
             <form onSubmit={magic} className="login-form">
               <input type="email" required placeholder="tu@correo.com" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
               <button className="btn primary big" disabled={state === 'sending'}>{state === 'sending' ? 'Enviando…' : 'Enviarme un enlace'}</button>
