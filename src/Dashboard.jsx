@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { User, FolderOpen, Sparkles, LogOut, Home, History, Timer, Clock, Layers, Repeat, GraduationCap } from 'lucide-react';
+import { User, FolderOpen, Sparkles, LogOut, Home, History, Timer, Clock, Layers, Repeat, GraduationCap, Gauge } from 'lucide-react';
 import DeckMenu from './DeckMenu.jsx';
 import { fmt, markedTimes } from './lib.js';
 import { listDecks, listLocalDecks, createDeck, updateDeck, importLocalDecks, clearPdfCache, retryPendingAudio, pendingAudioCount } from './store.js';
@@ -33,6 +33,7 @@ function UserMenu() {
         </div>
         <Link to="/app/cuenta"><User size={16} /> Mi cuenta</Link>
         <Link to="/app"><FolderOpen size={16} /> Mis presentaciones</Link>
+        <Link to="/app/temporizador"><Timer size={16} /> Temporizador</Link>
         <Link to="/app/planes"><Sparkles size={16} /> Ver planes</Link>
         <Link to="/universidades"><GraduationCap size={16} /> Para universidades</Link>
         <hr />
@@ -42,7 +43,7 @@ function UserMenu() {
   );
 }
 
-const APP_LINKS = [['/app', 'Inicio', Home], ['/app/ensayos', 'Ensayos', History], ['/app/temporizador', 'Temporizador', Timer]]
+const APP_LINKS = [['/app', 'Inicio', Home], ['/app/analizador', 'Analizador', Gauge], ['/app/ensayos', 'Ensayos', History]]
   .map(([to, t, I]) => <NavLink key={to} to={to} end><I size={16} /> {t}</NavLink>);
 
 export function AppNav({ children }) {
@@ -60,7 +61,7 @@ function Thumb({ id }) {
   return <Slide doc={doc} page={0} className="thumb" />;
 }
 
-function Upload({ onDone, defaultMinutes = 10 }) {
+export function Upload({ onDone, defaultMinutes = 10, compact = false }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [drag, setDrag] = useState(false);

@@ -12,7 +12,7 @@ export const loadPdf = (id) => {
 
 export function usePdf(id) {
   const [doc, setDoc] = useState(null);
-  useEffect(() => { loadPdf(id).then(setDoc); }, [id]);
+  useEffect(() => { setDoc(null); if (id) loadPdf(id).then(setDoc).catch(() => {}); }, [id]);
   return doc;
 }
 

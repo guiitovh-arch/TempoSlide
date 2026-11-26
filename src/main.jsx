@@ -10,6 +10,7 @@ import { Privacy, Terms } from './Legal.jsx';
 import Account, { NotFound } from './Account.jsx';
 import { Rehearsals, Timer, Plans } from './Pages.jsx';
 import Universities from './Universities.jsx';
+import Analyzer from './Analyzer.jsx';
 import './styles.css';
 
 createRoot(document.getElementById('root')).render(
@@ -19,6 +20,7 @@ createRoot(document.getElementById('root')).render(
       <Route path="/app" element={<Dashboard />} />
       <Route path="/app/cuenta" element={<Account />} />
       <Route path="/app/ensayos" element={<Rehearsals />} />
+      <Route path="/app/analizador" element={<Analyzer />} />
       <Route path="/app/temporizador" element={<Timer />} />
       <Route path="/app/planes" element={<Plans />} />
       <Route path="/login" element={<Login />} />
