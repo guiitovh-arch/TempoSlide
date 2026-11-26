@@ -9,6 +9,7 @@ import Login from './Login.jsx';
 import { Privacy, Terms } from './Legal.jsx';
 import Account, { NotFound } from './Account.jsx';
 import { Rehearsals, Timer, Plans } from './Pages.jsx';
+import Universities from './Universities.jsx';
 import './styles.css';
 
 createRoot(document.getElementById('root')).render(
@@ -21,6 +22,7 @@ createRoot(document.getElementById('root')).render(
       <Route path="/app/temporizador" element={<Timer />} />
       <Route path="/app/planes" element={<Plans />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/universidades" element={<Universities />} />
       <Route path="/privacidad" element={<Privacy />} />
       <Route path="/terminos" element={<Terms />} />
       <Route path="/app/deck/:id" element={<Deck />} />

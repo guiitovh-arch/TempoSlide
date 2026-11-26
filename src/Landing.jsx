@@ -104,7 +104,7 @@ export const plans = [
   { n: 'Gratis', p: '0 €', s: 'para siempre', f: ['2 presentaciones', 'Temporizador + cronómetro por diapositiva', 'Teleprompter básico', 'Últimos 3 ensayos guardados'], cta: 'Empezar gratis' },
   { n: 'Pase Defensa', p: '4,99 €', s: 'pago único · 30 días', hot: true, f: ['Todo Pro durante 30 días', 'Perfecto para tu TFM, TFG o pitch', 'Sin suscripción, no se renueva', 'Tus datos se quedan contigo'], cta: 'Preparar mi defensa' },
   { n: 'Pro', p: '6,99 €', s: '/ mes · o 49 € / año', f: ['Presentaciones ilimitadas', 'Historial completo e informes', 'Pantalla de público + atajos', 'Teleprompter avanzado (espejo, auto-ritmo)'], cta: 'Probar Pro' },
-  { n: 'Universidades', p: 'A medida', s: 'licencia campus', f: ['Cuentas para alumnos y tribunales', 'Plantillas de defensa con tiempos oficiales', 'Panel para docentes', 'Soporte y onboarding'], cta: 'Hablemos' },
+  { n: 'Universidades', p: 'A medida', s: 'licencia campus', f: ['Jornadas de defensa: convocatorias, aulas y tribunales', 'Estado de cada alumno: subida, ensayada, lista', 'Aviso de quién se va a pasar de tiempo', 'Horario público con QR'], cta: 'Ver el plan', to: '/universidades' },
 ];
 
 const faqs = [
@@ -121,7 +121,7 @@ const LANDING_LINKS = [
 ].map(([h, t]) => <a key={h} href={h}>{t}</a>);
 
 // Un solo botón de entrada: con sesión (o sin cuentas activadas) lleva a la app; sin sesión, al login.
-function EnterButton() {
+export function EnterButton() {
   const { ready, enabled, user } = useAuth();
   return <Link to={!ready || user || !enabled ? '/app' : '/login'} className="btn coral">{user ? 'Ir a la app' : 'Entrar'}</Link>;
 }
@@ -217,7 +217,7 @@ export default function Landing() {
               <div className="price">{p.p}</div>
               <small className="muted">{p.s}</small>
               <ul>{p.f.map((f) => <li key={f}>✓ {f}</li>)}</ul>
-              <Link to="/app" className={`btn ${p.hot ? 'primary' : 'ghost'}`}>{p.cta}</Link>
+              <Link to={p.to || '/app'} className={`btn ${p.hot ? 'primary' : 'ghost'}`}>{p.cta}</Link>
             </div>
           ))}
         </div>
@@ -235,7 +235,7 @@ export default function Landing() {
         <div className="wrap">
           <h2>Deja de adivinar.<br />Empieza a ensayar.</h2>
           <Link to="/app" className="btn primary big">Abrir TempoSlide →</Link>
-          <div className="foot-row"><Logo /><span className="foot-links"><Link to="/privacidad">Privacidad</Link><Link to="/terminos">Términos</Link></span><span>Hecho con ganas para mentes ágiles · © 2026</span></div>
+          <div className="foot-row"><Logo /><span className="foot-links"><Link to="/universidades">Universidades</Link><Link to="/privacidad">Privacidad</Link><Link to="/terminos">Términos</Link></span><span>Hecho con ganas para mentes ágiles · © 2026</span></div>
         </div>
       </footer>
     </div>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { User, FolderOpen, Sparkles, LogOut, Home, History, Timer, Clock, Layers, Repeat } from 'lucide-react';
+import { User, FolderOpen, Sparkles, LogOut, Home, History, Timer, Clock, Layers, Repeat, GraduationCap } from 'lucide-react';
 import DeckMenu from './DeckMenu.jsx';
 import { fmt, markedTimes } from './lib.js';
 import { listDecks, listLocalDecks, createDeck, updateDeck, importLocalDecks, clearPdfCache } from './store.js';
@@ -34,6 +34,7 @@ function UserMenu() {
         <Link to="/app/cuenta"><User size={16} /> Mi cuenta</Link>
         <Link to="/app"><FolderOpen size={16} /> Mis presentaciones</Link>
         <Link to="/app/planes"><Sparkles size={16} /> Ver planes</Link>
+        <Link to="/universidades"><GraduationCap size={16} /> Para universidades</Link>
         <hr />
         <button className="menu-danger" onClick={async () => { await (await supabase()).auth.signOut(); await clearPdfCache(); nav('/'); }}><LogOut size={16} /> Cerrar sesión</button>
       </div>
