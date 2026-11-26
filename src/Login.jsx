@@ -53,6 +53,7 @@ export default function Login() {
           </>
         )}
         <Link to="/app" className="muted small center-block">Seguir como invitado →</Link>
+        <p className="muted small center">Al continuar aceptas los <Link to="/terminos">términos</Link> y la <Link to="/privacidad">política de privacidad</Link>.</p>
       </main>
     </div>
   );

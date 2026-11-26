@@ -286,3 +286,16 @@ p.sub { margin: -18px auto 28px; max-width: 520px; }
 .demo-report p { margin: 0; line-height: 1.5; }
 .demo kbd { background: var(--soft); border-color: var(--line); }
 @media (max-width: 760px) { .demo { grid-template-columns: 1fr; } .hide-sm { display: none; } }
+
+/* Páginas legales */
+.legal-page { min-height: 100vh; padding-bottom: 64px; }
+.legal { padding-top: 24px; line-height: 1.7; }
+.legal h1 { font-size: clamp(2rem, 4vw, 2.8rem); margin-bottom: 4px; }
+.legal h2 { font-size: 1.25rem; margin: 32px 0 6px; }
+.legal p, .legal li { color: var(--ink); }
+.legal ul { padding-left: 20px; }
+.legal li { margin-bottom: 6px; }
+.legal a, .login a { color: var(--accent); }
+.legal-nav { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); }
+.foot-links { display: flex; gap: 18px; }
+.foot-links a:hover { color: #fff; }

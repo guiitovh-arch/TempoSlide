@@ -206,7 +206,7 @@ export default function Landing() {
         <div className="wrap">
           <h2>Deja de adivinar.<br />Empieza a ensayar.</h2>
           <Link to="/app" className="btn primary big">Abrir TempoSlide →</Link>
-          <div className="foot-row"><Logo /><span>Hecho con ganas para mentes ágiles · © 2026</span></div>
+          <div className="foot-row"><Logo /><span className="foot-links"><Link to="/privacidad">Privacidad</Link><Link to="/terminos">Términos</Link></span><span>Hecho con ganas para mentes ágiles · © 2026</span></div>
         </div>
       </footer>
     </div>
