@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Play, ScrollText, Wand2, Gauge, EyeOff } from 'lucide-react';
 import { fmt, deckSlides, manualPlans, requiredPpm, deckPpm, ppmHint, cleanPlanInput, parsePlan, perSlide, cuts } from './lib.js';
-import { getDeck, updateDeck, putDeck } from './store.js';
+import { getDeck, updateDeck, deleteSession } from './store.js';
 import Slide, { usePdf } from './Slide.jsx';
 import { AppNav } from './Dashboard.jsx';
 import DeckMenu from './DeckMenu.jsx';
@@ -110,10 +110,10 @@ export default function Deck() {
                   const d = s.totalMs - s.targetMs;
                   return (
                     <li key={s.id} className={s.id === session?.id ? 'on' : ''} onClick={() => setSel(s.id)}>
-                      <span>#{deck.sessions.length - i} · {new Date(s.at).toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' })}{s.blind && <span className="tag" title="Ensayo a ciegas"><EyeOff size={12} /> a ciegas</span>}</span>
+                      <span>#{deck.sessions.length - i} · {new Date(s.at).toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' })}{s.blind && <span className="tag" title="Ensayo a ciegas"><EyeOff size={12} /> a ciegas</span>}{s.audio && <span className="tag" title="Con grabación">🎙 {fmt(s.audio.seconds * 1000)}</span>}</span>
                       <b>{fmt(s.totalMs)}</b>
                       <span className={`chip ${d > 0 ? 'red' : 'green'}`}>{d > 0 ? `+${fmt(d)} pasado` : `${fmt(-d)} margen`}</span>
-                      <button className="x" title="Borrar ensayo" onClick={async (e) => { e.stopPropagation(); setDeck(await putDeck({ ...deck, sessions: deck.sessions.filter((x) => x.id !== s.id) })); }}>×</button>
+                      <button className="x" title="Borrar ensayo" onClick={async (e) => { e.stopPropagation(); if (s.audio && !confirm('Este ensayo tiene una grabación. ¿Borrar el ensayo y su grabación?')) return; setDeck(await deleteSession(id, s.id)); }}>×</button>
                     </li>
                   );
                 })}

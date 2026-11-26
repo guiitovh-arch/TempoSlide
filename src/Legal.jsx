@@ -40,6 +40,7 @@ export function Privacy() {
         <li><b>Cuenta</b> (si te registras): tu correo electrónico y, si entras con Google, tu nombre y foto de perfil. Solo pedimos a Google los permisos básicos de identidad (correo y perfil); <b>no accedemos</b> a tu Drive, Gmail, Presentaciones ni a ningún otro servicio de tu cuenta.</li>
         <li><b>Tus presentaciones</b>: el archivo convertido a PDF, las notas del orador, el tiempo objetivo y el plan por diapositiva.</li>
         <li><b>Tus ensayos</b>: fecha, duración total y tiempo de cada diapositiva.</li>
+        <li><b>Grabaciones de voz</b> (solo si activas «Grabar audio» en un ensayo y eliges guardarla): el audio del ensayo, para que puedas escucharte y mejorar. Se guarda en un espacio privado de tu cuenta, solo tú puedes escucharlo (también en presentaciones compartidas) y lo borras cuando quieras desde Ensayos. Borrar el ensayo o tu cuenta borra sus grabaciones. El micrófono solo se activa cuando tú lo enciendes.</li>
         <li><b>Preferencias</b>: el tema claro u oscuro, guardado solo en tu navegador.</li>
       </ul>
 
@@ -55,14 +56,14 @@ export function Privacy() {
       <h2>6. Con quién los compartimos</h2>
       <p>No vendemos ni cedemos tus datos. Usamos estos proveedores para que TempoSlide funcione, que actúan como encargados del tratamiento:</p>
       <ul>
-        <li><b>Supabase</b>: autenticación, base de datos y almacenamiento de tus PDF (privados y accesibles solo con tu sesión).</li>
+        <li><b>Supabase</b>: autenticación, base de datos y almacenamiento de tus PDF y grabaciones (privados y accesibles solo con tu sesión).</li>
         <li><b>Vercel</b>: alojamiento de la web y conversión temporal de archivos.</li>
         <li><b>Google</b>: inicio de sesión con Google (si lo eliges) y carga de las tipografías de la web (Google Fonts), que implica que tu navegador contacte con servidores de Google.</li>
       </ul>
       <p>Estos proveedores pueden almacenar o tratar datos fuera de Chile (por ejemplo, en Estados Unidos). Solo trabajamos con proveedores que ofrecen garantías adecuadas de seguridad y confidencialidad, como cláusulas contractuales de protección de datos.</p>
 
       <h2>7. Cuánto tiempo los guardamos</h2>
-      <p>Mientras mantengas tu cuenta. Puedes borrar cualquier presentación o ensayo desde la app en cualquier momento, y se elimina de nuestros sistemas (incluido el PDF). Si quieres eliminar tu cuenta completa, escríbenos a <Mail /> y la borraremos junto con todos sus datos.</p>
+      <p>Mientras mantengas tu cuenta. Puedes borrar cualquier presentación, ensayo o grabación desde la app en cualquier momento, y se elimina de nuestros sistemas (incluidos el PDF y el audio). Si quieres eliminar tu cuenta completa, escríbenos a <Mail /> y la borraremos junto con todos sus datos.</p>
 
       <h2>8. Tus derechos</h2>
       <p>Puedes acceder a tus datos, rectificarlos, suprimirlos, pedir su portabilidad, oponerte o limitar su tratamiento escribiendo a <Mail />. Responderemos en un plazo máximo de 30 días. Si consideras que no hemos atendido bien tu solicitud, puedes reclamar ante la Agencia de Protección de Datos Personales de Chile o ante la autoridad de protección de datos de tu país.</p>

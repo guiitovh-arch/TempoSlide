@@ -30,6 +30,7 @@ export default function Slide({ doc, page, className = '', black = false }) {
       if (cancelled) return;
       const v1 = p.getViewport({ scale: 1 });
       setRatio(v1.height / v1.width);
+      if (cancelled || !wrap.current || !canvas.current) return;
       const w = wrap.current.clientWidth || 800;
       const dpr = window.devicePixelRatio || 1;
       const vp = p.getViewport({ scale: (w / v1.width) * dpr });

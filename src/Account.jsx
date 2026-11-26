@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { supabase, useAuth, userName, userAvatar, userProvider, userPrefs, PLAN } from './supabase.js';
-import { listDecks, exportData, deleteAccount } from './store.js';
+import { listDecks, exportData, deleteAccount, audioUsage, AUDIO_QUOTA } from './store.js';
 import { fmt, rehearsalStats } from './lib.js';
 import { AppNav } from './Dashboard.jsx';
 import { ThemeToggle } from './Landing.jsx';
@@ -57,8 +57,22 @@ function Plan({ stats }) {
         <div><span>Presentaciones</span><b>{stats.decks}</b><small>sin límite en la beta</small></div>
         <div><span>Ensayos guardados</span><b>{stats.sessions}</b><small>sin límite en la beta</small></div>
       </div>
-      <div className="row"><a href="/#precios" className="btn ghost">Ver planes</a></div>
+      <AudioUsage />
+      <div className="row"><Link to="/app/planes" className="btn ghost">Ver planes</Link></div>
     </section>
+  );
+}
+
+function AudioUsage() {
+  const [used, setUsed] = useState(null);
+  useEffect(() => { audioUsage().then(setUsed).catch(() => setUsed(null)); }, []);
+  if (used == null) return null;
+  const mb = (b) => (b / 1024 / 1024).toLocaleString('es', { maximumFractionDigits: 1 });
+  return (
+    <div className="kpi-line">
+      <span>Grabaciones: <b>{mb(used)} MB</b> de {mb(AUDIO_QUOTA)} MB</span>
+      <span className="bar"><i style={{ width: `${Math.min(100, (used / AUDIO_QUOTA) * 100)}%`, background: used > AUDIO_QUOTA * 0.9 ? '#c43c32' : 'var(--plum)' }} /></span>
+    </div>
   );
 }
 

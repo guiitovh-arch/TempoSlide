@@ -3,7 +3,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { User, FolderOpen, Sparkles, LogOut, Home, History, Timer, Clock, Layers, Repeat, GraduationCap } from 'lucide-react';
 import DeckMenu from './DeckMenu.jsx';
 import { fmt, markedTimes } from './lib.js';
-import { listDecks, listLocalDecks, createDeck, updateDeck, importLocalDecks, clearPdfCache } from './store.js';
+import { listDecks, listLocalDecks, createDeck, updateDeck, importLocalDecks, clearPdfCache, retryPendingAudio, pendingAudioCount } from './store.js';
 import { supabase, useAuth, userName, userPrefs, PLAN } from './supabase.js';
 import { Avatar } from './Account.jsx';
 import { pptxNotes } from './pptx.js';
@@ -124,11 +124,13 @@ export default function Dashboard() {
   const auth = useAuth();
   const [imported, setImported] = useState(0);
   const [renaming, setRenaming] = useState(null);
+  const [pending, setPending] = useState(0);
   useEffect(() => {
     if (!auth.ready) return;
     (async () => {
       // Primera vez con sesión: subir a la cuenta lo creado como invitado.
       if (auth.user && (await listLocalDecks()).length) setImported(await importLocalDecks());
+      if (auth.user && (await pendingAudioCount())) { await retryPendingAudio(); setPending(await pendingAudioCount()); }
       setDecks(await listDecks());
     })().catch((e) => { console.error(e); setDecks([]); });
   }, [auth.ready, auth.user?.id]);
@@ -155,6 +157,7 @@ export default function Dashboard() {
         {auth.ready && auth.enabled && !auth.user && (
           <p className="notice">Estás en <b>modo invitado</b>: tus presentaciones solo viven en este navegador. <Link to="/login"><b>Crea una cuenta</b></Link> para guardarlas en la nube.</p>
         )}
+        {pending > 0 && <p className="notice">🎙 Grabación pendiente de subir ({pending}). Lo reintentaremos la próxima vez que abras TempoSlide.</p>}
         {imported > 0 && <p className="notice ok">☁️ Subimos a tu cuenta {imported} presentación{imported > 1 ? 'es' : ''} que tenías en este navegador.</p>}
         <Upload key={auth.user?.id || 'guest'} defaultMinutes={userPrefs(auth.user).defaultMinutes} onDone={(d) => nav(`/app/deck/${d.id}`)} />
 

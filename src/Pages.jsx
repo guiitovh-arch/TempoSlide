@@ -1,17 +1,43 @@
 // Páginas de la app: historial de ensayos, temporizador suelto y planes.
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Maximize, Pause, Play, RotateCcw, Check } from 'lucide-react';
+import { Maximize, Pause, Play, RotateCcw, Check, EyeOff, Mic, Download, Trash2 } from 'lucide-react';
 import { AppNav } from './Dashboard.jsx';
-import { listDecks } from './store.js';
+import { listDecks, audioUrl, downloadAudio, deleteSessionAudio } from './store.js';
 import { fmt, phase, rehearsalStats } from './lib.js';
 import { plans } from './Landing.jsx';
 import { PLAN } from './supabase.js';
 
+function AudioCell({ s, onDeleted }) {
+  const [url, setUrl] = useState(null);
+  const [err, setErr] = useState('');
+  if (!s.audio) return <span className="muted">—</span>;
+  const dl = async () => {
+    const blob = await downloadAudio(s.audio.path);
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `ensayo-${s.deck.title}-${s.at.slice(0, 10)}.${s.audio.path.split('.').pop()}` });
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  return (
+    <div className="audio-cell">
+      {url ? <audio controls autoPlay src={url} /> : (
+        <button className="btn ghost small" onClick={async () => { try { setUrl(await audioUrl(s.audio.path)); } catch (e) { setErr(e.message); } }}><Play size={14} /> {fmt(s.audio.seconds * 1000)}</button>
+      )}
+      <button className="icon-btn" title="Descargar" aria-label="Descargar grabación" onClick={dl}><Download size={14} /></button>
+      <button className="icon-btn" title="Borrar grabación" aria-label="Borrar grabación" onClick={async () => { if (confirm('¿Borrar esta grabación? El ensayo se conserva.')) { await deleteSessionAudio(s.deck.id, s.id); onDeleted(); } }}><Trash2 size={14} /></button>
+      {err && <small className="err">{err}</small>}
+    </div>
+  );
+}
+
+const FILTERS = [['all', 'Todos'], ['blind', 'A ciegas'], ['audio', 'Con grabación']];
+
 export function Rehearsals() {
   const [decks, setDecks] = useState(null);
-  useEffect(() => { listDecks().then(setDecks).catch(() => setDecks([])); }, []);
-  const rows = (decks || []).flatMap((d) => d.sessions.map((s) => ({ ...s, deck: d }))).sort((a, b) => b.at.localeCompare(a.at));
+  const [filter, setFilter] = useState('all');
+  const load = () => listDecks().then(setDecks).catch(() => setDecks([]));
+  useEffect(() => { load(); }, []);
+  const all = (decks || []).flatMap((d) => d.sessions.map((s) => ({ ...s, deck: d }))).sort((a, b) => b.at.localeCompare(a.at));
+  const rows = all.filter((s) => filter === 'all' || (filter === 'blind' ? s.blind : !!s.audio));
   const st = rehearsalStats(decks || []);
   return (
     <div className="app">
@@ -25,29 +51,38 @@ export function Rehearsals() {
             <div className="stat mint"><b>{st.streak} {st.streak === 1 ? 'día' : 'días'}</b><span>racha</span></div>
           </div>
         </header>
-        {decks && rows.length === 0 && (
+        {decks === null && <p className="muted">Cargando…</p>}
+        {decks && all.length === 0 && (
           <div className="card empty"><p>Aún no has ensayado. Abre una presentación, pulsa <b>Presentar</b> y luego <b>Iniciar</b>: cada ensayo aparecerá aquí.</p><Link to="/app" className="btn primary">Ir a mis presentaciones</Link></div>
         )}
-        {rows.length > 0 && (
-          <div className="card table-card">
-            <table className="table">
-              <thead><tr><th>Fecha</th><th>Presentación</th><th>Modo</th><th>Duración</th><th>Frente al objetivo</th></tr></thead>
-              <tbody>
-                {rows.map((s) => {
-                  const d = s.totalMs - s.targetMs;
-                  return (
-                    <tr key={s.id}>
-                      <td>{new Date(s.at).toLocaleString('es', { dateStyle: 'medium', timeStyle: 'short' })}</td>
-                      <td><Link to={`/app/deck/${s.deck.id}?session=${s.id}`} className="deck-link">{s.deck.title}</Link></td>
-                      <td className="muted">{s.mode === 'teleprompter' ? 'Teleprompter' : 'Ensayo'}</td>
-                      <td className="mono">{fmt(s.totalMs)}</td>
-                      <td><span className={`chip ${d > 0 ? 'red' : 'green'}`}>{d > 0 ? `+${fmt(d)} pasado` : `${fmt(-d)} margen`}</span></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+        {all.length > 0 && (
+          <>
+            <div className="seg" role="tablist" aria-label="Filtrar ensayos">
+              {FILTERS.map(([k, t]) => <button key={k} role="tab" aria-selected={filter === k} className={filter === k ? 'on' : ''} onClick={() => setFilter(k)}>{t}</button>)}
+            </div>
+            {rows.length === 0 ? <p className="muted">No hay ensayos con este filtro.</p> : (
+              <div className="card table-card">
+                <table className="table">
+                  <thead><tr><th>Fecha</th><th>Presentación</th><th>Modo</th><th>Duración</th><th>Frente al objetivo</th><th>Grabación</th></tr></thead>
+                  <tbody>
+                    {rows.map((s) => {
+                      const d = s.totalMs - s.targetMs;
+                      return (
+                        <tr key={s.id}>
+                          <td>{new Date(s.at).toLocaleString('es', { dateStyle: 'medium', timeStyle: 'short' })}</td>
+                          <td><Link to={`/app/deck/${s.deck.id}?session=${s.id}`} className="deck-link">{s.deck.title}</Link></td>
+                          <td className="muted">{s.mode === 'teleprompter' ? 'Teleprompter' : 'Ensayo'}{s.blind && <span className="tag"><EyeOff size={12} /> a ciegas</span>}</td>
+                          <td className="mono">{fmt(s.totalMs)}</td>
+                          <td><span className={`chip ${d > 0 ? 'red' : 'green'}`}>{d > 0 ? `+${fmt(d)} pasado` : `${fmt(-d)} margen`}</span></td>
+                          <td><AudioCell s={s} onDeleted={load} /></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>

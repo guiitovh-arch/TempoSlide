@@ -47,3 +47,12 @@ end;
 $$;
 revoke all on function public.delete_account() from public, anon;
 grant execute on function public.delete_account() to authenticated;
+
+-- ─── Grabaciones de ensayos (privadas: rehearsal-audio/<user_id>/<ensayo>.webm|m4a) ───
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('rehearsal-audio', 'rehearsal-audio', false, 15728640, array['audio/webm', 'audio/mp4'])
+on conflict (id) do nothing;
+drop policy if exists "audio propio" on storage.objects;
+create policy "audio propio" on storage.objects for all to authenticated
+  using (bucket_id = 'rehearsal-audio' and (storage.foldername(name))[1] = auth.uid()::text)
+  with check (bucket_id = 'rehearsal-audio' and (storage.foldername(name))[1] = auth.uid()::text);
