@@ -10,6 +10,9 @@ create table if not exists public.decks (
 );
 create index if not exists decks_user_idx on public.decks (user_id, created_at desc);
 
+-- Solo usuarios con sesión (las políticas RLS limitan cada fila a su dueño). Los proyectos nuevos no conceden permisos por defecto.
+grant select, insert, update, delete on public.decks to authenticated;
+
 alter table public.decks enable row level security;
 drop policy if exists "decks propios" on public.decks;
 create policy "decks propios" on public.decks
