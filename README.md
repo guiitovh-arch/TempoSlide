@@ -54,4 +54,4 @@ El cliente las lee en tiempo de ejecución desde `/api/config`, así no hace fal
 
 Si las notas empiezan con una marca de tiempo — `(30 s)`, `(1 min)` — se usan como plan por diapositiva; las diapositivas sin marca se tratan como anexo (0 s, fuera del plan).
 
-Limitaciones conocidas (prototipo): pagos simulados; en modo invitado los datos no salen del navegador; la pantalla de público funciona en el mismo navegador (BroadcastChannel).
+Limitaciones conocidas (beta): pagos aún no activos; en modo invitado los datos no salen del navegador; la pantalla de público funciona en el mismo navegador (BroadcastChannel).

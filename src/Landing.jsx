@@ -192,7 +192,7 @@ export default function Landing() {
             </div>
           ))}
         </div>
-        <p className="micro center">Prototipo académico (TFM): los pagos están simulados.</p>
+        <p className="micro center">Estamos en beta: de momento todos los planes son gratis mientras activamos los pagos.</p>
       </section>
 
       <section id="faq" className="wrap narrow">
