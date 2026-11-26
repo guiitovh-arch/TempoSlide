@@ -4,9 +4,9 @@ import { Link } from 'react-router-dom';
 import { Logo, ThemeToggle } from './Landing.jsx';
 
 const LEGAL = {
-  owner: '[NOMBRE DEL TITULAR]', // persona física o empresa responsable
-  email: '[CORREO DE CONTACTO]',
-  country: '[PAÍS]',
+  owner: 'Diego Ignacio Díaz Jiménez', // persona natural o empresa responsable
+  email: 'ddyitocontacto@gmail.com',
+  country: 'Chile',
   updated: '26 de noviembre de 2026',
 };
 
@@ -33,7 +33,7 @@ export function Privacy() {
       <p>En TempoSlide queremos que ensayes tranquilo, también respecto a tus datos. Aquí explicamos qué guardamos, para qué y cómo puedes controlarlo. Sin letra pequeña: no vendemos datos, no mostramos publicidad y no usamos cookies de seguimiento.</p>
 
       <h2>1. Responsable</h2>
-      <p>El responsable del tratamiento es <b>{LEGAL.owner}</b> ({LEGAL.country}). Para cualquier consulta sobre privacidad escríbenos a <Mail />.</p>
+      <p>El responsable del tratamiento es <b>{LEGAL.owner}</b>, con domicilio en {LEGAL.country}. Para cualquier consulta sobre privacidad escríbenos a <Mail />. Tratamos tus datos conforme a la Ley N° 19.628 sobre protección de la vida privada y su modificación por la Ley N° 21.719, y respetamos los derechos equivalentes que te reconozca la normativa de tu país (como el RGPD si estás en la Unión Europea).</p>
 
       <h2>2. Qué datos tratamos</h2>
       <ul>
@@ -59,19 +59,19 @@ export function Privacy() {
         <li><b>Vercel</b>: alojamiento de la web y conversión temporal de archivos.</li>
         <li><b>Google</b>: inicio de sesión con Google (si lo eliges) y carga de las tipografías de la web (Google Fonts), que implica que tu navegador contacte con servidores de Google.</li>
       </ul>
-      <p>Algunos de estos proveedores pueden tratar datos fuera del Espacio Económico Europeo (por ejemplo, en Estados Unidos), con las garantías previstas en la normativa, como las cláusulas contractuales tipo.</p>
+      <p>Estos proveedores pueden almacenar o tratar datos fuera de Chile (por ejemplo, en Estados Unidos). Solo trabajamos con proveedores que ofrecen garantías adecuadas de seguridad y confidencialidad, como cláusulas contractuales de protección de datos.</p>
 
       <h2>7. Cuánto tiempo los guardamos</h2>
       <p>Mientras mantengas tu cuenta. Puedes borrar cualquier presentación o ensayo desde la app en cualquier momento, y se elimina de nuestros sistemas (incluido el PDF). Si quieres eliminar tu cuenta completa, escríbenos a <Mail /> y la borraremos junto con todos sus datos.</p>
 
       <h2>8. Tus derechos</h2>
-      <p>Puedes acceder a tus datos, rectificarlos, suprimirlos, pedir su portabilidad, oponerte o limitar su tratamiento escribiendo a <Mail />. Si consideras que no hemos atendido bien tu solicitud, puedes reclamar ante la autoridad de protección de datos de tu país.</p>
+      <p>Puedes acceder a tus datos, rectificarlos, suprimirlos, pedir su portabilidad, oponerte o limitar su tratamiento escribiendo a <Mail />. Responderemos en un plazo máximo de 30 días. Si consideras que no hemos atendido bien tu solicitud, puedes reclamar ante la Agencia de Protección de Datos Personales de Chile o ante la autoridad de protección de datos de tu país.</p>
 
       <h2>9. Seguridad</h2>
       <p>Las comunicaciones van cifradas (HTTPS) y cada usuario solo puede leer y modificar sus propios datos, gracias a reglas de seguridad a nivel de fila en la base de datos. Al cerrar sesión borramos la copia local de tus PDF en ese navegador.</p>
 
       <h2>10. Menores</h2>
-      <p>TempoSlide no está dirigido a menores de 14 años.</p>
+      <p>TempoSlide no está dirigido a menores de 14 años. Si eres menor de 14, necesitas la autorización de tu padre, madre o tutor para crear una cuenta.</p>
 
       <h2>11. Cambios</h2>
       <p>Si cambiamos esta política, actualizaremos la fecha de arriba y, si el cambio es relevante, te avisaremos dentro de la app.</p>
@@ -109,7 +109,7 @@ export function Terms() {
       <p>Puedes dejar de usar TempoSlide cuando quieras y pedir la eliminación de tu cuenta escribiendo a <Mail />. Podemos dar de baja el servicio avisando con antelación razonable para que puedas descargar tus archivos.</p>
 
       <h2>9. Cambios y ley aplicable</h2>
-      <p>Podemos actualizar estos términos; si el cambio es relevante, te avisaremos. Se rigen por la legislación de {LEGAL.country}, sin perjuicio de los derechos que te correspondan como consumidor en tu país de residencia.</p>
+      <p>Podemos actualizar estos términos; si el cambio es relevante, te avisaremos. Se rigen por la legislación de {LEGAL.country}, sin perjuicio de los derechos que te correspondan como consumidor (incluida la Ley N° 19.496 sobre protección de los derechos de los consumidores, o la normativa de consumo de tu país de residencia).</p>
     </Page>
   );
 }
