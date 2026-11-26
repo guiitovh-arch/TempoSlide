@@ -83,7 +83,7 @@ async function savePdf(id, pdf) {
 export async function createDeck({ title, fileName, pdf, notes, targetMinutes }) {
   const id = crypto.randomUUID();
   await savePdf(id, pdf);
-  return putDeck({ id, title, fileName, createdAt: new Date().toISOString(), targetMinutes, wpm: 130, notes, slideTargets: null, skipped: [], slideCount: null, sessions: [] });
+  return putDeck({ id, title, fileName, createdAt: new Date().toISOString(), targetMinutes, notes, plan: null, skipped: [], slideCount: null, sessions: [] });
 }
 
 // Al iniciar sesión: sube a la cuenta las presentaciones creadas como invitado y las quita del modo local.

@@ -90,7 +90,7 @@ function Upload({ onDone, defaultMinutes = 10 }) {
       const main = src || pdfFile;
       const marks = markedTimes(notes);
       const deck = await createDeck({ title: main.name.replace(/\.[^.]+$/, ''), fileName: main.name, pdf, notes, targetMinutes: marks ? Math.round((marks.reduce((x, y) => x + y, 0) / 60) * 10) / 10 : +minutes || 10 });
-      onDone(marks ? await updateDeck(deck.id, { slideTargets: marks, timesFromNotes: true }) : deck);
+      onDone(marks ? await updateDeck(deck.id, { plan: marks, timesFromNotes: true }) : deck);
     } catch (e) { setErr(e.message); }
     finally { setBusy(false); }
   };

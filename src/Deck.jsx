@@ -1,18 +1,25 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { fmt, words, estimateSlides, budgets, perSlide, cuts, analyze, trimPlan, CONTEXTS } from './lib.js';
+import { Play, ScrollText, Wand2, Gauge, EyeOff } from 'lucide-react';
+import { fmt, deckSlides, manualPlans, requiredPpm, deckPpm, ppmHint, cleanPlanInput, parsePlan, perSlide, cuts } from './lib.js';
 import { getDeck, updateDeck, putDeck } from './store.js';
-import { Play, ScrollText } from 'lucide-react';
-import DeckMenu from './DeckMenu.jsx';
 import Slide, { usePdf } from './Slide.jsx';
 import { AppNav } from './Dashboard.jsx';
+import DeckMenu from './DeckMenu.jsx';
 
-const VERDICTS = {
-  short: { label: 'Se queda corta', color: '#6d58a5' },
-  ok: { label: 'Cómoda', color: '#397449' },
-  tight: { label: 'Justa', color: '#b7791f' },
-  over: { label: 'Te vas a pasar', color: '#c43c32' },
-};
+// Campo de plan: vacío con el propuesto en gris, texto mientras se escribe, número al salir.
+function PlanInput({ manual, proposed, disabled, onCommit }) {
+  const [raw, setRaw] = useState(manual == null ? '' : String(manual));
+  useEffect(() => { setRaw(manual == null ? '' : String(manual)); }, [manual]);
+  return (
+    <input className="plan-input" inputMode="numeric" pattern="[0-9]*" maxLength={3} aria-label="Segundos de plan"
+      placeholder={String(proposed)} value={raw} disabled={disabled}
+      onFocus={(e) => e.target.select()}
+      onChange={(e) => setRaw(cleanPlanInput(e.target.value))}
+      onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+      onBlur={() => { const v = parsePlan(raw); setRaw(v == null ? '' : String(v)); if (v !== manual) onCommit(v); }} />
+  );
+}
 
 export default function Deck() {
   const { id } = useParams();
@@ -37,35 +44,22 @@ export default function Deck() {
     if (deck && count && deck.slideCount !== count) save({ slideCount: count, notes: Array.from({ length: count }, (_, i) => deck.notes[i] || '') });
   }, [deck?.id, count]);
 
-  const plan = useMemo(() => (deck && count ? budgets(deck, count) : []), [deck, count]);
   if (!deck) return <div className="app"><AppNav /><main className="wrap"><p className="muted">Cargando…</p></main></div>;
 
-  const skipped = deck.skipped || [];
-  const excluded = Array.from({ length: count }, (_, i) => !!skipped[i] || (!!deck.slideTargets && plan[i] === 0)); // omitidas o anexos
-  const est = count ? estimateSlides(deck.notes, count, deck.wpm, excluded).reduce((a, b) => a + b, 0) : 0;
-  const targetSec = deck.targetMinutes * 60;
-  const A = analyze(est, targetSec, deck.context);
-  const V = VERDICTS[A.verdict];
-  const trim = A.mid > targetSec ? trimPlan(deck.notes, excluded, A.mid - targetSec, deck.wpm || 130) : null;
-  const lastRun = deck.sessions.at(-1);
+  const slides = count ? deckSlides(deck, count) : [];
+  const plan = slides.map((s) => s.plan);
+  const planSec = plan.reduce((a, b) => a + b, 0);
+  const maxSec = deck.targetMinutes * 60;
+  const ppm = deckPpm(slides);
+  const setManual = (i, v) => { const p = manualPlans(deck, count); p[i] = v; save({ plan: p, slideTargets: null, timesFromNotes: false }); };
+  const proposeAll = () => save({ plan: slides.map((s) => s.proposed), slideTargets: null, timesFromNotes: false });
+  const toggleSkip = (i) => { const s = Array.from({ length: count }, (_, j) => !!deck.skipped?.[j]); s[i] = !s[i]; save({ skipped: s }); };
+
   const session = deck.sessions.find((s) => s.id === sel) || deck.sessions.at(-1);
   const real = session ? perSlide(session.slides, count) : [];
   const toCut = session && session.totalMs > session.targetMs ? cuts(plan, real) : [];
   const maxBar = Math.max(1, ...plan.map((x) => x * 1000), ...real);
-  const hasNotes = deck.notes.some((n) => n?.trim());
-  // ppm necesarias para decir el guion en el tiempo planificado (5 s por diapositiva para transiciones).
-  const scriptWords = deck.notes.reduce((x, n, i) => x + (excluded[i] ? 0 : words(n)), 0);
-  const speakSec = plan.reduce((x, y) => x + y, 0) - excluded.filter((e) => !e).length * 5;
-  const requiredWpm = Math.round(scriptWords / (Math.max(speakSec, 30) / 60));
   const best = deck.sessions.length ? deck.sessions.reduce((a, s) => (Math.abs(s.totalMs - s.targetMs) < Math.abs(a.totalMs - a.targetMs) ? s : a)) : null;
-  const setTarget = (i, v) => {
-    const t = [...plan]; t[i] = Math.max(0, +v || 0);
-    save({ slideTargets: t, timesFromNotes: false, targetMinutes: Math.round((t.reduce((a, x) => a + x, 0) / 60) * 10) / 10 });
-  };
-  const toggleSkip = (i) => {
-    const s = Array.from({ length: count }, (_, j) => !!skipped[j]); s[i] = !s[i];
-    save({ skipped: s, slideTargets: null });
-  };
 
   return (
     <div className="app">
@@ -82,52 +76,29 @@ export default function Deck() {
           </div>
           <div className="row">
             <label className="inline">Tiempo máximo
-              <input type="number" min="1" step="0.5" value={deck.targetMinutes} onChange={(e) => save({ targetMinutes: +e.target.value || 1, slideTargets: null })} /> min
+              <input type="number" min="1" step="0.5" value={deck.targetMinutes} onChange={(e) => save({ targetMinutes: +e.target.value || 1 })} /> min
             </label>
-            <label className="inline">Ritmo de habla
-              <input type="number" min="60" max="220" value={deck.wpm || 130} onChange={(e) => save({ wpm: +e.target.value || 130, slideTargets: null })} /> ppm
-            </label>
-            <label className="inline">Contexto
-              <select value={deck.context || 'defensa'} onChange={(e) => save({ context: e.target.value })}>
-                {Object.entries(CONTEXTS).map(([k, c]) => <option key={k} value={k}>{c.label}</option>)}
-              </select>
-            </label>
-            {deck.timesFromNotes && deck.slideTargets && <span className="chip green">⏱ Tiempos importados de tus notas</span>}
-            {deck.slideTargets && <button className="btn ghost small" onClick={() => save({ slideTargets: null })}>↺ Reparto automático</button>}
+            {deck.timesFromNotes && <span className="chip green">⏱ Plan importado de tus notas</span>}
+            <button className="btn ghost small" onClick={proposeAll} title="Rellena el plan de todas las diapositivas a partir de las notas"><Wand2 size={14} /> Proponer plan para todas</button>
+            <Link className="btn ghost small" to={`/app/analizador?deck=${id}`}><Gauge size={14} /> Analizar</Link>
           </div>
         </header>
 
         <section className="grid2">
           <div className="card analysis">
-            <div className="row between"><span className="eyebrow">Pre-análisis</span><span className="chip" style={{ background: V.color }}>{V.label}</span></div>
-            <div className="big-num">{fmt(A.mid * 1000)}</div>
-            <p className="muted">entre <b>{fmt(A.lo * 1000)}</b> y <b>{fmt(A.hi * 1000)}</b> según tu ritmo del día</p>
-            <div className="usage" title={`${Math.round(A.pct * 100)} % del tiempo`}>
-              <i style={{ width: `${Math.min(100, (A.pct / 1.3) * 100)}%`, background: V.color }} />
+            <span className="eyebrow">Tu plan</span>
+            <div className="big-num">{fmt(planSec * 1000)}</div>
+            <div className="usage" title={`${Math.round((planSec / maxSec) * 100)} % del tiempo`}>
+              <i style={{ width: `${Math.min(100, (planSec / maxSec / 1.3) * 100)}%`, background: planSec > maxSec ? '#c43c32' : '#397449' }} />
               <span className="usage-limit" style={{ left: `${100 / 1.3}%` }} />
             </div>
-            <p>Ocupa el <b>{Math.round(A.pct * 100)} %</b> de tus {deck.targetMinutes.toLocaleString('es')} min: {A.mid > targetSec ? <>te pasas unos <b>{fmt((A.mid - targetSec) * 1000)}</b></> : <>te sobran <b>{fmt((targetSec - A.mid) * 1000)}</b></>}. Probabilidad de pasarte: <b>{Math.round(A.pOver * 100)} %</b>.</p>
-            {A.verdict === 'short' && A.suggestMin < deck.targetMinutes && (
-              <p className="tip">Te bastan <b>{A.suggestMin} min</b> incluso con un ritmo lento. <button className="btn ghost small" onClick={() => save({ targetMinutes: A.suggestMin, slideTargets: null })}>Usar {A.suggestMin} min</button></p>
-            )}
-            {trim && hasNotes && (
-              <div className="tip">
-                <b>✂️ Qué recortar:</b> unas <b>{trim.toCut} palabras</b> de guion (o hablar a {requiredWpm} ppm). Donde más se nota:
-                <ul>{trim.slides.map((x) => <li key={x.index}>Diapositiva {x.index + 1}: −{x.cut} de {x.words} palabras</li>)}</ul>
-                {trim.rest > 0 && <p className="small">Aun así faltarían ~{trim.rest} palabras: plantéate omitir alguna diapositiva o pedir más tiempo.</p>}
-              </div>
-            )}
-            <label className="inline guess">Creo que dura
-              <input type="number" min="0" step="0.5" placeholder="?" value={deck.guessMinutes ?? ''} onChange={(e) => save({ guessMinutes: e.target.value === '' ? null : +e.target.value })} /> min
-            </label>
-            {deck.guessMinutes > 0 && (
-              <p className="small">Creías {deck.guessMinutes} min; la estimación es {fmt(A.mid * 1000)} ({A.mid > deck.guessMinutes * 60 ? 'te quedabas corto' : 'te pasabas'} por {fmt(Math.abs(A.mid - deck.guessMinutes * 60) * 1000)}).</p>
-            )}
-            {lastRun && <p className="small">⏱ Último ensayo real: <b>{fmt(lastRun.totalMs)}</b> · estimado {fmt(A.mid * 1000)} ({fmt(lastRun.totalMs - A.mid * 1000, true)}).</p>}
-            {best && deck.sessions.length > 1 && <p className="small">🏆 Mejor ensayo: <b>{fmt(best.totalMs)}</b> de {deck.sessions.length}.</p>}
-            <p className="muted small">
-              {hasNotes ? `Basado en ${scriptWords} palabras de notas a ${deck.wpm || 130} ppm + transiciones, contexto «${CONTEXTS[deck.context || 'defensa'].label}»${skipped.some(Boolean) ? ` · ${skipped.filter(Boolean).length} diapositivas omitidas` : ''}.` : 'Sin notas del orador: añade tu guion abajo para una estimación precisa (y para el teleprompter).'}
-            </p>
+            {planSec > maxSec
+              ? <p className="tip">Tu plan suma <b>{fmt(planSec * 1000)}</b> y tienes <b>{fmt(maxSec * 1000)}</b>: recorta <b>{fmt((planSec - maxSec) * 1000)}</b>.</p>
+              : <p>Tienes {fmt(maxSec * 1000)}: te quedan <b>{fmt((maxSec - planSec) * 1000)}</b> de margen.</p>}
+            {ppm && <p>Para cumplir tu plan de {fmt(planSec * 1000)} necesitas hablar a unos <b>{ppm} ppm</b>{ppmHint(ppm) && <span className={`ppm-hint ${ppm > 180 ? 'bad' : ''}`}> · {ppmHint(ppm)}</span>}.</p>}
+            {!ppm && <p className="muted small">Añade tu guion en las notas para ver a qué ritmo tendrás que hablar.</p>}
+            {best && <p className="small">🏆 Mejor ensayo: <b>{fmt(best.totalMs)}</b> de {deck.sessions.length}.</p>}
+            <p className="muted small">El plan que escribes manda: no cambia al editar notas ni el tiempo máximo. Los campos vacíos usan el valor propuesto (en gris).</p>
           </div>
           <div className="card">
             <span className="eyebrow">Ensayos</span>
@@ -139,7 +110,7 @@ export default function Deck() {
                   const d = s.totalMs - s.targetMs;
                   return (
                     <li key={s.id} className={s.id === session?.id ? 'on' : ''} onClick={() => setSel(s.id)}>
-                      <span>#{deck.sessions.length - i} · {new Date(s.at).toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                      <span>#{deck.sessions.length - i} · {new Date(s.at).toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' })}{s.blind && <span className="tag" title="Ensayo a ciegas"><EyeOff size={12} /> a ciegas</span>}</span>
                       <b>{fmt(s.totalMs)}</b>
                       <span className={`chip ${d > 0 ? 'red' : 'green'}`}>{d > 0 ? `+${fmt(d)} pasado` : `${fmt(-d)} margen`}</span>
                       <button className="x" title="Borrar ensayo" onClick={async (e) => { e.stopPropagation(); setDeck(await putDeck({ ...deck, sessions: deck.sessions.filter((x) => x.id !== s.id) })); }}>×</button>
@@ -158,29 +129,37 @@ export default function Deck() {
         </section>
 
         <h2 className="left">Diapositiva a diapositiva</h2>
-        <p className="muted">Edita el guion (alimenta el teleprompter), el tiempo de cada diapositiva u omítela. <span className="legend"><i className="plan" /> plan <i className="real" /> {session ? 'ensayo seleccionado' : 'ensayo'}</span></p>
+        <p className="muted">Edita el guion (alimenta el teleprompter), el plan en segundos de cada diapositiva u omítela. <span className="legend"><i className="plan" /> plan <i className="real" /> {session ? 'ensayo seleccionado' : 'ensayo'}</span></p>
         <div className="slides-list">
-          {Array.from({ length: count }, (_, i) => (
-            <div key={i} className={`slide-row card ${skipped[i] ? 'skipped' : ''}`}>
-              <div className="slide-row-thumb"><span className="num">{i + 1}</span><Slide doc={doc} page={i} className="thumb" /></div>
-              <textarea
-                placeholder="Escribe aquí lo que vas a decir en esta diapositiva…"
-                defaultValue={deck.notes[i] || ''}
-                onBlur={(e) => { if (e.target.value !== (deck.notes[i] || '')) { const n = [...deck.notes]; n[i] = e.target.value; save({ notes: n }); } }}
-              />
-              <div className="slide-row-time">
-                <label className="inline">Plan
-                  <input type="number" min="0" value={plan[i] ?? 0} disabled={skipped[i]} onChange={(e) => setTarget(i, e.target.value)} /> s
-                </label>
-                <div className="bars">
-                  <span className="bar plan"><i style={{ width: `${((plan[i] * 1000) / maxBar) * 100}%` }} /></span>
-                  {session && <span className={`bar real ${real[i] > plan[i] * 1000 * 1.15 ? 'over' : ''}`}><i style={{ width: `${(real[i] / maxBar) * 100}%` }} /></span>}
+          {slides.map((s, i) => {
+            const sppm = requiredPpm(s.words, s.plan);
+            const hint = ppmHint(sppm);
+            return (
+              <div key={i} className={`slide-row card ${s.omitted ? 'skipped' : ''}`}>
+                <div className="slide-row-thumb"><span className="num">{i + 1}</span><Slide doc={doc} page={i} className="thumb" /></div>
+                <textarea
+                  placeholder="Escribe aquí lo que vas a decir en esta diapositiva…"
+                  defaultValue={deck.notes[i] || ''}
+                  onBlur={(e) => { if (e.target.value !== (deck.notes[i] || '')) { const n = [...deck.notes]; n[i] = e.target.value; save({ notes: n }); } }}
+                />
+                <div className="slide-row-time">
+                  <div className="row">
+                    <label className="inline">Plan <PlanInput manual={s.manualPlan} proposed={s.proposed} disabled={s.omitted} onCommit={(v) => setManual(i, v)} /> s</label>
+                    {s.manualPlan == null && !s.omitted && <button className="link-btn small" onClick={() => setManual(i, s.proposed)} title="Fijar el plan propuesto">Proponer</button>}
+                  </div>
+                  <div className="bars">
+                    <span className="bar plan"><i style={{ width: `${((s.plan * 1000) / maxBar) * 100}%` }} /></span>
+                    {session && <span className={`bar real ${real[i] > s.plan * 1000 * 1.15 ? 'over' : ''}`}><i style={{ width: `${(real[i] / maxBar) * 100}%` }} /></span>}
+                  </div>
+                  <small className="muted">
+                    {session ? `Real ${fmt(real[i])} · ` : ''}{s.words} palabras{sppm ? ` · ≈ ${sppm} ppm` : ''}
+                  </small>
+                  {hint && !s.omitted && <small className={`ppm-hint ${sppm > 180 ? 'bad' : ''}`}>{hint}</small>}
+                  <label className="inline small"><input type="checkbox" checked={s.omitted} onChange={() => toggleSkip(i)} /> Omitir al presentar</label>
                 </div>
-                <small className={session && real[i] > plan[i] * 1000 * 1.15 ? 'err' : 'muted'}>{session ? `Real ${fmt(real[i])} · ` : ''}{words(deck.notes[i])} palabras</small>
-                <label className="inline small"><input type="checkbox" checked={!!skipped[i]} onChange={() => toggleSkip(i)} /> Omitir al presentar</label>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </main>
     </div>

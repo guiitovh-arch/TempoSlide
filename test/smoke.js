@@ -1,73 +1,96 @@
-// Comprobación mínima: lógica de tiempos + extracción de notas del PPTX de prueba.
+// Comprobaciones de la lógica pura (src/lib.js) y de la lectura de notas del PPTX.
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
-import { fmt, estimateSlides, budgets, band, pace, phase, perSlide, cuts, markedTimes, rehearsalStats, analyze, trimPlan } from '../src/lib.js';
+import * as L from '../src/lib.js';
 import { pptxNotes } from '../src/pptx.js';
 
-assert.equal(fmt(65_000), '01:05');
-assert.equal(fmt(-5_000), '−00:05');
-assert.equal(fmt(5_000, true), '+00:05');
+assert.equal(L.fmt(65_000), '01:05');
+assert.equal(L.fmt(-5_000), '−00:05');
+assert.equal(L.fmt(5_000, true), '+00:05');
 
-const notes = ['uno dos tres', '', 'a '.repeat(130)];
-const est = estimateSlides(notes, 3);
-assert.equal(est[1], 15); // mínimo por diapositiva
-assert.ok(Math.abs(est[2] - 68) < 0.01); // 130 palabras a 130 ppm = 60 s + 8 s
+// 7.4 · campo de plan: "15" es 15, nunca "015"; vacío = sin plan manual; tope 600 s
+assert.equal(L.cleanPlanInput('015'), '15');
+assert.equal(L.cleanPlanInput('0'), '0');
+assert.equal(L.cleanPlanInput('1a5s'), '15');
+assert.equal(L.parsePlan('15'), 15);
+assert.equal(L.parsePlan(''), null);
+assert.equal(L.parsePlan('999'), 600);
 
-const b = budgets({ notes, targetMinutes: 2, slideTargets: null }, 3);
-assert.ok(Math.abs(b.reduce((a, x) => a + x, 0) - 120) <= 1); // reparto suma el objetivo
-assert.deepEqual(budgets({ notes, targetMinutes: 2, slideTargets: [1, 2, 3] }, 3), [1, 2, 3]);
+// 7.3 · el plan manual manda; sin él se propone por notas (150 ppm + 2 s) o por tipo
+const deck = { notes: ['', 'a '.repeat(150), 'b '.repeat(300), ''], plan: [null, null, 45, null], skipped: [false, false, false, false] };
+let sl = L.deckSlides(deck, 4);
+assert.deepEqual(sl.map((s) => s.plan), [10, 62, 45, 15]); // título 10 s · 150 palabras = 60+2 · manual 45 · cierre 15
+assert.equal(L.deckSlides({ ...deck, notes: ['', 'a '.repeat(150), 'x '.repeat(999), ''] }, 4)[2].plan, 45); // cambiar notas no pisa el manual
+assert.equal(L.deckSlides({ ...deck, skipped: [false, true, false, false] }, 4)[1].plan, 0); // omitida
+assert.equal(L.deckSlides({ notes: ['x'], slideTargets: [30] }, 1)[0].plan, 30); // formato antiguo
+assert.equal(L.requiredPpm(300, 45), 400);
+assert.equal(L.deckPpm(sl), Math.round(450 / ((62 + 45) / 60))); // sin notas no cuenta para el ritmo
+assert.equal(L.ppmHint(190), 'Muy rápido para este plan');
+assert.equal(L.ppmHint(100), 'Te sobra tiempo');
+assert.equal(L.ppmHint(150), null);
 
-assert.equal(band(100, 200).key, 'short');
-assert.equal(band(200, 200).key, 'tight');
-assert.equal(band(250, 200).key, 'over');
+// 7.6 · cronómetro: total = suma por diapositiva; reiniciar 0:50 resta 0:50 y deshacer lo recupera
+let c = L.resumeClock(L.newClock(10, 8), 0);
+c = L.goTo(c, 9, 350_000);           // 5:50 en la diapositiva 9
+const before = c, at = 400_000;      // 0:50 en la 10ª (índice 9) → total 6:40
+assert.equal(L.totalMs(c, at), 400_000);
+c = L.resetSlide(c, at);
+assert.equal(L.totalMs(c, at), 350_000);
+assert.equal(L.slideMs(c, at), 0);
+assert.equal(c.resets[9], 1);
+const undone = L.undoReset(before, c, at);
+assert.equal(L.totalMs(undone, at + 2_000), 402_000); // recupera 0:50 y conserva lo corrido después
+assert.equal(undone.resets[9], 0);
+const paused = L.pauseClock(L.resumeClock(L.newClock(2), 0), 5_000);
+assert.equal(L.totalMs(paused, 99_000), 5_000); // en pausa no corre
 
-assert.equal(pace([10, 10], 1, 5_000, 15_000), 0); // justo en plan
-assert.equal(pace([10, 10], 1, 5_000, 20_000), -5_000); // 5 s tarde
-assert.equal(phase(-1, 100), 'over');
-assert.equal(phase(5, 100), 'danger');
-assert.equal(phase(20, 100), 'warn');
-assert.deepEqual(perSlide([{ index: 0, ms: 5 }, { index: 1, ms: 3 }, { index: 0, ms: 2 }], 2), [7, 3]);
+// Analizador · determinista, percentiles ordenados
+const sim = L.simulate({ seconds: [60, 120, 90], maxSec: 270 });
+assert.deepEqual(sim, L.simulate({ seconds: [60, 120, 90], maxSec: 270 }));
+assert.ok(sim.p10 < sim.p50 && sim.p50 < sim.p90);
+assert.ok(Math.abs(sim.p50 - 270) < 15);
+assert.ok(sim.over > 300 && sim.over < 700);
+assert.equal(L.verdict(0.5), 'short');
+assert.equal(L.verdict(1), 'tight');
+assert.equal(L.verdict(1.2), 'over');
+assert.equal(L.histogram(sim.totals, 270).reduce((a, b) => a + b.count, 0), 1000);
+const cs = L.cutSuggestions([{ type: 'titulo', plan: 99 }, { type: 'contenido', plan: 30 }, { type: 'contenido', plan: 60 }, { type: 'cierre', plan: 99 }], 50);
+assert.deepEqual(cs.map((s) => s.plan), [60]); // sin portada ni cierre, las más largas primero
+const sp = L.spareAllocation([{ plan: 30 }, { plan: 90 }], 100);
+assert.deepEqual([sp.margin, sp.extra], [10, [23, 68]]);
 
-const sk = budgets({ notes, targetMinutes: 2, slideTargets: null, skipped: [false, true, false] }, 3);
-assert.equal(sk[1], 0); // omitida
-assert.ok(Math.abs(sk[0] + sk[2] - 120) <= 1);
-assert.deepEqual(cuts([10, 10, 10], [10_000, 25_000, 14_000]).map((c) => c.index), [1, 2]);
+// Organizador · charla de 15 min con presentación de 18 → +3 min y la sesión acaba más tarde
+const ses = { day: '2027-06-01', room: 'A', start: 9 * 60, talks: [{ id: 't1', minutes: 15, predicted: 18 * 60, speakers: ['p1'] }, { id: 't2', minutes: 15, speakers: ['p2'] }] };
+assert.deepEqual(L.timeline(ses).map((t) => [t.start, t.end]), [[540, 555], [555, 570]]);
+assert.equal(L.forecast(ses), 573);
+const other = { day: '2027-06-01', room: 'A', start: 9 * 60 + 10, talks: [{ id: 't3', minutes: 10, speakers: ['p1'] }] };
+assert.deepEqual(L.conflicts([ses, other]).map((c) => c.type).sort(), ['ponente', 'sala', 'sala', 'se-pasa']); // t3 pisa t1 y t2 en la sala A
+assert.equal(L.hhmm(573), '09:33');
 
-assert.deepEqual(markedTimes(['(1,5 min) hola', '(10 seg) x', 'nada']), [90, 10, 0]);
-assert.equal(markedTimes(['sin marcas']), null);
+// CSV · evita fórmulas
+assert.equal(L.toCsv([['=SUM(A1)', 'a,b', '@x', 'ok']]), `'=SUM(A1),"a,b",'@x,ok`);
 
-// Deck real del usuario (no versionado): solo si está presente.
+// Estadísticas y marcas
+assert.deepEqual(L.markedTimes(['(1,5 min) hola', '(10 seg) x', 'nada']), [90, 10, 0]);
+assert.equal(L.markedTimes(['sin marcas']), null);
+const st = L.rehearsalStats([
+  { sessions: [{ at: '2026-11-26T10:00:00Z', totalMs: 600_000, targetMs: 600_000 }, { at: '2026-11-25T10:00:00Z', totalMs: 660_000, targetMs: 600_000 }] },
+  { sessions: [{ at: '2026-11-23T10:00:00Z', totalMs: 300_000, targetMs: 600_000 }] },
+], new Date('2026-11-26T20:00:00Z'));
+assert.deepEqual([st.decks, st.sessions, st.best, st.streak], [2, 3, 0, 2]);
+assert.deepEqual(L.perSlide([{ index: 0, ms: 5 }, { index: 1, ms: 3 }, { index: 0, ms: 2 }], 2), [7, 3]);
+assert.equal(L.phase(-1, 100), 'over');
+assert.equal(L.phase(5, 100), 'danger');
+
+// PPTX
+const n = await pptxNotes(await fs.readFile(new URL('./tfm-demo.pptx', import.meta.url)));
+assert.equal(n.length, 6);
+assert.match(n[0], /^Buenos días, tribunal/);
 const tfmPath = new URL('./PraxiaJob_Defensa_TFM.pptx', import.meta.url);
 if (await fs.stat(tfmPath).catch(() => null)) {
   const tfm = await pptxNotes(await fs.readFile(tfmPath));
   assert.equal(tfm.length, 33);
-  const marks = markedTimes(tfm);
-  assert.deepEqual(marks.slice(0, 3), [20, 5, 35]);
-  assert.equal(marks[32], 0); // anexo sin marca
+  assert.deepEqual(L.markedTimes(tfm).slice(0, 3), [20, 5, 35]);
   console.log('✓ deck TFM: 33 diapositivas, notas y marcas de tiempo');
 }
-
-
-const n = await pptxNotes(await fs.readFile(new URL('./tfm-demo.pptx', import.meta.url)));
-assert.equal(n.length, 6);
-assert.match(n[0], /^Buenos días, tribunal/);
-const st = rehearsalStats([
-  { sessions: [{ at: '2026-11-26T10:00:00Z', totalMs: 600_000, targetMs: 600_000 }, { at: '2026-11-25T10:00:00Z', totalMs: 660_000, targetMs: 600_000 }] },
-  { sessions: [{ at: '2026-11-23T10:00:00Z', totalMs: 300_000, targetMs: 600_000 }] },
-], new Date('2026-11-26T20:00:00Z'));
-assert.deepEqual([st.decks, st.sessions, st.best, st.streak], [2, 3, 0, 2]); // racha 25-26, rota el 24
-assert.equal(rehearsalStats([{ sessions: [{ at: '2026-11-25T10:00:00Z', totalMs: 1, targetMs: 1 }] }], new Date('2026-11-26T09:00:00Z')).streak, 1); // ayer cuenta
-assert.equal(rehearsalStats([]).best, null);
-const a = analyze(600, 600);
-assert.equal(a.verdict, 'tight');
-assert.ok(Math.abs(a.pOver - 0.5) < 0.01); // justo en el límite: 50 %
-assert.ok(analyze(400, 600).pOver < 0.01 && analyze(400, 600).verdict === 'short');
-assert.ok(analyze(800, 600).pOver > 0.95 && analyze(800, 600).verdict === 'over');
-assert.equal(analyze(600, 600, 'reunion').mid, 690);
-const tp = trimPlan(['a '.repeat(100), 'b '.repeat(300), 'c '.repeat(50)], [false, false, false], 60, 130, 2);
-assert.equal(tp.toCut, 130);
-assert.deepEqual(tp.slides.map((x) => [x.index, x.cut]), [[1, 98], [0, 33]]);
-assert.equal(tp.rest, 0);
-const big = trimPlan(['a '.repeat(100)], [false], 600); // 1300 palabras sobre 100 disponibles
-assert.deepEqual([big.slides[0].cut, big.rest], [40, 1260]); // nunca más del 40 % de una diapositiva
 console.log('✓ smoke OK');

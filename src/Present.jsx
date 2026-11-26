@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { fmt, budgets, pace, phase } from './lib.js';
+import { fmt, deckSlides, pace, phase } from './lib.js';
 import { getDeck, addSession } from './store.js';
 import Slide, { usePdf } from './Slide.jsx';
 
@@ -42,7 +42,7 @@ export default function Present() {
 
   useEffect(() => { getDeck(id).then(setDeck); }, [id]);
   const count = doc?.numPages ?? 0;
-  const plan = deck && count ? budgets(deck, count) : [];
+  const plan = deck && count ? deckSlides(deck, count).map((s) => s.plan) : [];
   const targetMs = (deck?.targetMinutes ?? 10) * 60_000;
 
   // Segunda pantalla (mismo navegador) vía BroadcastChannel.
