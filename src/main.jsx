@@ -12,6 +12,8 @@ import { Rehearsals, Timer, Plans } from './Pages.jsx';
 import Universities from './Universities.jsx';
 import Analyzer from './Analyzer.jsx';
 import Library from './Library.jsx';
+import { Events, EventDetail, SpeakersPage, PostersPage } from './Org.jsx';
+import Organizer from './Organizer.jsx';
 import './styles.css';
 
 createRoot(document.getElementById('root')).render(
@@ -23,6 +25,11 @@ createRoot(document.getElementById('root')).render(
       <Route path="/app/ensayos" element={<Rehearsals />} />
       <Route path="/app/analizador" element={<Analyzer />} />
       <Route path="/app/presentaciones" element={<Library />} />
+      <Route path="/app/eventos" element={<Events />} />
+      <Route path="/app/eventos/:id" element={<EventDetail />} />
+      <Route path="/app/organizador" element={<Organizer />} />
+      <Route path="/app/ponentes" element={<SpeakersPage />} />
+      <Route path="/app/posters" element={<PostersPage />} />
       <Route path="/app/temporizador" element={<Timer />} />
       <Route path="/app/planes" element={<Plans />} />
       <Route path="/login" element={<Login />} />

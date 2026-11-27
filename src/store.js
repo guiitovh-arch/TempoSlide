@@ -112,7 +112,15 @@ export async function exportData(user) {
   const { default: JSZip } = await import('jszip');
   const decks = await listDecks();
   const zip = new JSZip();
-  zip.file('temposlide.json', JSON.stringify({ exportedAt: new Date().toISOString(), user: user && { id: user.id, email: user.email, name: user.user_metadata?.full_name || null }, decks }, null, 2));
+  // Eventos, programa, ponentes y pósteres (solo con cuenta).
+  let events = [];
+  const r = await remote();
+  if (r) {
+    const q = async (t) => must(await r.sb.from(t).select('*'));
+    const [ev, sp, se, ta, ts, pa, po] = await Promise.all(['events', 'speakers', 'sessions', 'talks', 'talk_speakers', 'panels', 'posters'].map((t) => q(t).catch(() => [])));
+    events = ev.map((e) => ({ ...e, speakers: sp.filter((x) => x.event_id === e.id), sessions: se.filter((x) => x.event_id === e.id).map((x) => ({ ...x, talks: ta.filter((t) => t.session_id === x.id).map((t) => ({ ...t, speakers: ts.filter((y) => y.talk_id === t.id).map((y) => y.speaker_id) })) })), panels: pa.filter((x) => x.event_id === e.id), posters: po.filter((x) => x.event_id === e.id) }));
+  }
+  zip.file('temposlide.json', JSON.stringify({ exportedAt: new Date().toISOString(), user: user && { id: user.id, email: user.email, name: user.user_metadata?.full_name || null }, decks, events }, null, 2));
   for (const d of decks) {
     const pdf = await getPdf(d.id).catch(() => null);
     if (pdf) zip.file(`presentaciones/${d.title.replace(/[\\/:*?"<>|]/g, '_')}-${d.id.slice(0, 8)}.pdf`, pdf);

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { User, FolderOpen, Sparkles, LogOut, Home, History, Timer, Clock, Layers, Repeat, GraduationCap, Gauge } from 'lucide-react';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { User, FolderOpen, Sparkles, LogOut, Home, History, Timer, Clock, Layers, Repeat, GraduationCap, Gauge, CalendarDays, CalendarRange, Users, LayoutGrid, ChevronDown } from 'lucide-react';
 import { fmt, markedTimes } from './lib.js';
 import { listDecks, listLocalDecks, createDeck, updateDeck, importLocalDecks, clearPdfCache, retryPendingAudio, pendingAudioCount } from './store.js';
 import { supabase, useAuth, userName, userPrefs, PLAN } from './supabase.js';
@@ -42,15 +42,39 @@ function UserMenu() {
   );
 }
 
-const APP_LINKS = [['/app', 'Inicio', Home], ['/app/analizador', 'Analizador', Gauge], ['/app/presentaciones', 'Presentaciones', FolderOpen], ['/app/ensayos', 'Ensayos', History]]
-  .map(([to, t, I]) => <NavLink key={to} to={to} end><I size={16} /> {t}</NavLink>);
+const link = ([to, t, I]) => <NavLink key={to} to={to} end={to === '/app'}><I size={16} /> {t}</NavLink>;
+const MAIN_LINKS = [['/app', 'Inicio', Home], ['/app/analizador', 'Analizador', Gauge], ['/app/presentaciones', 'Presentaciones', FolderOpen], ['/app/ensayos', 'Ensayos', History]];
+const ORG_LINKS = [['/app/eventos', 'Eventos', CalendarDays], ['/app/organizador', 'Organizador', CalendarRange], ['/app/ponentes', 'Ponentes', Users], ['/app/posters', 'Pósteres', LayoutGrid]];
 
-export function AppNav({ children }) {
+// «Organizar ▾»: desplegable por debajo de 1280 px; se abre con clic o teclado y se cierra con Esc o al salir.
+function OrgDropdown() {
+  const loc = useLocation();
+  const active = ORG_LINKS.some(([to]) => loc.pathname.startsWith(to));
+  const ref = useRef(null);
+  useEffect(() => {
+    const k = (e) => { if (e.key === 'Escape' && ref.current?.open) { ref.current.open = false; ref.current.querySelector('summary').focus(); } };
+    const out = (e) => { if (ref.current?.open && !ref.current.contains(e.target)) ref.current.open = false; };
+    document.addEventListener('keydown', k); document.addEventListener('mousedown', out);
+    return () => { document.removeEventListener('keydown', k); document.removeEventListener('mousedown', out); };
+  }, []);
+  return (
+    <details ref={ref} className={`org-drop ${active ? 'active' : ''}`} onClick={(e) => e.target.closest('a') && ref.current.removeAttribute('open')}>
+      <summary>Organizar <ChevronDown size={14} /></summary>
+      <div className="menu-pop card">{ORG_LINKS.map(link)}</div>
+    </details>
+  );
+}
+
+export function AppNav() {
   return (
     <nav className="nav wrap app-nav">
       <Logo to="/app" />
-      <div className="nav-links app-links">{APP_LINKS}</div>
-      <div className="row">{children}<ThemeToggle /><MobileMenu>{APP_LINKS}</MobileMenu><UserMenu /></div>
+      <div className="nav-links app-links">
+        {MAIN_LINKS.map(link)}
+        <span className="org-pill">{ORG_LINKS.map(link)}</span>
+        <OrgDropdown />
+      </div>
+      <div className="row nav-right"><ThemeToggle /><MobileMenu>{MAIN_LINKS.map(link)}<hr />{ORG_LINKS.map(link)}</MobileMenu><UserMenu /></div>
     </nav>
   );
 }

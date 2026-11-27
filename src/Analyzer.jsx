@@ -6,7 +6,9 @@ import { AppNav, Upload } from './Dashboard.jsx';
 import { listDecks, getDeck, updateDeck } from './store.js';
 import { useAuth, userPrefs } from './supabase.js';
 import { usePdf } from './Slide.jsx';
-import { fmt, deckSlides, manualPlans, deckPpm, simulate, verdict, histogram, cutSuggestions, spareAllocation, CONTEXTS, SLIDE_TYPES } from './lib.js';
+import { Modal } from './Org.jsx';
+import { listEvents, loadEvent, Talks, dayLabel } from './events.js';
+import { hhmm, fmt, deckSlides, manualPlans, deckPpm, simulate, verdict, histogram, cutSuggestions, spareAllocation, CONTEXTS, SLIDE_TYPES } from './lib.js';
 
 const VERDICTS = {
   short: { label: 'Corta', color: '#6d58a5', text: 'Ocupa menos del 70 % de tu tiempo: puedes añadir contenido, reservar tiempo para preguntas o pedir menos tiempo.' },
@@ -185,5 +187,51 @@ export default function Analyzer() {
   );
 }
 
-// «Añadir al programa» aparece cuando exista el Organizador (paso 10).
-export function AddToProgram() { return null; }
+// «Añadir al programa»: crea una charla vinculada a esta presentación en una sesión de un evento.
+function AddToProgram({ deck, predicted }) {
+  const auth = useAuth();
+  const [open, setOpen] = useState(false);
+  const [events, setEvents] = useState(null);
+  const [ev, setEv] = useState('');
+  const [data, setData] = useState(null);
+  const [ses, setSes] = useState('');
+  const [minutes, setMinutes] = useState(Math.max(1, Math.round(deck.targetMinutes || predicted / 60)));
+  const [done, setDone] = useState(null);
+  const [err, setErr] = useState('');
+  useEffect(() => { if (open && !events) listEvents().then((e) => { setEvents(e); setEv(e[0]?.id || ''); }).catch((x) => setErr(x.message)); }, [open]);
+  useEffect(() => { setData(null); setSes(''); if (ev) loadEvent(ev).then((d) => { setData(d); setSes(d.sessions[0]?.id || ''); }); }, [ev]);
+  if (!auth.user) return null;
+  const add = async () => {
+    setErr('');
+    try {
+      const pos = Math.max(-1, ...data.talks.filter((t) => t.session_id === ses).map((t) => t.position)) + 1;
+      await Talks.save({ session_id: ses, position: pos, kind: 'talk', title: deck.title, minutes: Math.min(600, Math.max(1, +minutes || 1)), deck_id: deck.id });
+      setDone(ev);
+    } catch (x) { setErr(x.message); }
+  };
+  return (
+    <>
+      <button className="btn ghost small" onClick={() => { setOpen(true); setDone(null); }}><CalendarPlus size={14} /> Añadir al programa</button>
+      {open && (
+        <Modal title="Añadir al programa" onClose={() => setOpen(false)}>
+          {done ? (
+            <><p>Añadida a la sesión con su duración prevista ({fmt(predicted * 1000)}).</p><div className="row"><Link className="btn primary" to={`/app/organizador?evento=${done}`}>Ver el programa</Link><button className="btn ghost" onClick={() => setOpen(false)}>Cerrar</button></div></>
+          ) : events?.length === 0 ? (
+            <><p className="muted">Aún no tienes eventos.</p><Link className="btn primary" to="/app/eventos?nuevo=1">Crear evento</Link></>
+          ) : (
+            <div className="form-grid">
+              <label>Evento<select value={ev} onChange={(e) => setEv(e.target.value)}>{(events || []).map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select></label>
+              <label>Sesión<select value={ses} onChange={(e) => setSes(e.target.value)} disabled={!data?.sessions.length}>
+                {data?.sessions.length ? data.sessions.map((x) => <option key={x.id} value={x.id}>{dayLabel(x.day)} · {hhmm(x.start_min)} · {x.name}</option>) : <option>Este evento no tiene sesiones</option>}
+              </select></label>
+              {data && !data.sessions.length && <small className="muted">Crea una sesión en el <Link to={`/app/organizador?evento=${ev}`}>Organizador</Link>.</small>}
+              <label>Minutos asignados<input className="text-input num" inputMode="numeric" value={minutes} onChange={(e) => setMinutes(e.target.value.replace(/\D/g, ''))} /></label>
+              {err && <p className="err small">{err}</p>}
+              <div className="row"><button className="btn primary" disabled={!ses} onClick={add}>Añadir charla</button><button className="btn ghost" onClick={() => setOpen(false)}>Cancelar</button></div>
+            </div>
+          )}
+        </Modal>
+      )}
+    </>
+  );
+}

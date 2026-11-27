@@ -41,6 +41,7 @@ export function Privacy() {
         <li><b>Tus presentaciones</b>: el archivo convertido a PDF, las notas del orador, el tiempo objetivo y el plan por diapositiva.</li>
         <li><b>Tus ensayos</b>: fecha, duración total y tiempo de cada diapositiva.</li>
         <li><b>Grabaciones de voz</b> (solo si activas «Grabar audio» en un ensayo y eliges guardarla): el audio del ensayo, para que puedas escucharte y mejorar. Se guarda en un espacio privado de tu cuenta, solo tú puedes escucharlo (también en presentaciones compartidas) y lo borras cuando quieras desde Ensayos. Borrar el ensayo o tu cuenta borra sus grabaciones. El micrófono solo se activa cuando tú lo enciendes.</li>
+        <li><b>Eventos y ponentes</b> (si usas Eventos, Organizador, Ponentes o Pósteres): el programa que creas y las fichas de ponentes que escribes tú (nombre, correo, institución, país, nota y estado). Son datos de terceros que tú aportas: asegúrate de tener permiso para usarlos con este fin. Solo los ves tú; no les enviamos nada a esas personas. Se incluyen en «Exportar mis datos» y se borran con el evento o con tu cuenta.</li>
         <li><b>Preferencias</b>: el tema claro u oscuro, guardado solo en tu navegador.</li>
       </ul>
 

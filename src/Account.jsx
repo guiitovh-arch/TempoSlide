@@ -173,7 +173,7 @@ function DataZone({ user }) {
       <section className="card">
         <h3>Tus datos</h3>
         <div className="pref-row">
-          <div><b>Exportar mis datos</b><p className="muted small">Un ZIP con tus presentaciones (PDF), notas, planes y ensayos.</p></div>
+          <div><b>Exportar mis datos</b><p className="muted small">Un ZIP con tus presentaciones (PDF), notas, planes, ensayos, grabaciones y eventos (programa, ponentes y pósteres).</p></div>
           <button className="btn ghost small" onClick={doExport} disabled={!!busy}>{busy === 'export' ? 'Preparando…' : '⬇ Descargar ZIP'}</button>
         </div>
       </section>

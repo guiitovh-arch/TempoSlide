@@ -63,15 +63,14 @@ export default function Deck() {
 
   return (
     <div className="app">
-      <AppNav>
-        <span className="muted small">{saved}</span>
-        <Link className="btn ghost" to={`/present/${id}?prompter=1`}><ScrollText size={16} /> <span className="hide-sm">Ensayar con teleprompter</span></Link>
-        <Link className="btn coral" to={`/present/${id}`}><Play size={16} /> Presentar</Link>
-      </AppNav>
+      <AppNav />
       <main className="wrap">
         <header className="deck-head">
           <div className="deck-title-row full">
             <input className="title-input" aria-label="Título" value={deck.title} onChange={(e) => setDeck({ ...deck, title: e.target.value })} onBlur={(e) => save({ title: e.target.value })} />
+            <span className="muted small saved">{saved}</span>
+            <Link className="btn ghost" to={`/present/${id}?prompter=1`}><ScrollText size={16} /> <span className="hide-sm">Ensayar con teleprompter</span></Link>
+            <Link className="btn coral" to={`/present/${id}`}><Play size={16} /> Presentar</Link>
             <DeckMenu deck={deck} onDuplicated={(c) => nav(`/app/deck/${c.id}`)} onDeleted={() => nav('/app')} onChanged={() => window.location.reload()} />
           </div>
           <div className="row">
