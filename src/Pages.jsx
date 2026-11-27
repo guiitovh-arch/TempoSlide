@@ -6,7 +6,7 @@ import { AppNav } from './Dashboard.jsx';
 import { listDecks, audioUrl, downloadAudio, deleteSessionAudio } from './store.js';
 import { fmt, phase, rehearsalStats } from './lib.js';
 import { plans } from './Landing.jsx';
-import { PLAN } from './supabase.js';
+import { PLAN, useAuth } from './supabase.js';
 
 function AudioCell({ s, onDeleted }) {
   const [url, setUrl] = useState(null);
@@ -34,10 +34,15 @@ const FILTERS = [['all', 'Todos'], ['blind', 'A ciegas'], ['audio', 'Con grabaci
 export function Rehearsals() {
   const [decks, setDecks] = useState(null);
   const [filter, setFilter] = useState('all');
+  const [person, setPerson] = useState('');
+  const auth = useAuth();
+  const me = auth.user?.id;
   const load = () => listDecks().then(setDecks).catch(() => setDecks([]));
-  useEffect(() => { load(); }, []);
-  const all = (decks || []).flatMap((d) => d.sessions.map((s) => ({ ...s, deck: d }))).sort((a, b) => b.at.localeCompare(a.at));
-  const rows = all.filter((s) => filter === 'all' || (filter === 'blind' ? s.blind : !!s.audio));
+  useEffect(() => { load(); }, [me]);
+  // Incluye los ensayos de los demás miembros en presentaciones de grupo (sin su audio).
+  const all = (decks || []).flatMap((d) => (d.groupSessions || d.sessions).map((s) => ({ ...s, deck: d, mine: !s.userId || s.userId === me, who: s.userId && s.userId !== me ? d.members?.find((m) => m.user_id === s.userId)?.name || 'Otro miembro' : 'Tú', part: s.presenterName || (d.presenters?.length ? 'Grupo completo' : '') }))).sort((a, b) => b.at.localeCompare(a.at));
+  const people = [...new Set(all.map((s) => s.part).filter(Boolean))];
+  const rows = all.filter((s) => (filter === 'all' || (filter === 'blind' ? s.blind : !!s.audio)) && (!person || s.part === person));
   const st = rehearsalStats(decks || []);
   return (
     <div className="app">
@@ -60,10 +65,15 @@ export function Rehearsals() {
             <div className="seg" role="tablist" aria-label="Filtrar ensayos">
               {FILTERS.map(([k, t]) => <button key={k} role="tab" aria-selected={filter === k} className={filter === k ? 'on' : ''} onClick={() => setFilter(k)}>{t}</button>)}
             </div>
+            {people.length > 0 && (
+              <select className="person-filter" value={person} onChange={(e) => setPerson(e.target.value)} aria-label="Filtrar por presentador">
+                <option value="">Todas las personas</option>{people.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            )}
             {rows.length === 0 ? <p className="muted">No hay ensayos con este filtro.</p> : (
               <div className="card table-card">
                 <table className="table">
-                  <thead><tr><th>Fecha</th><th>Presentación</th><th>Modo</th><th>Duración</th><th>Frente al objetivo</th><th>Grabación</th></tr></thead>
+                  <thead><tr><th>Fecha</th><th>Presentación</th><th>Quién</th><th>Modo</th><th>Duración</th><th>Frente al objetivo</th><th>Grabación</th></tr></thead>
                   <tbody>
                     {rows.map((s) => {
                       const d = s.totalMs - s.targetMs;
@@ -71,10 +81,11 @@ export function Rehearsals() {
                         <tr key={s.id}>
                           <td>{new Date(s.at).toLocaleString('es', { dateStyle: 'medium', timeStyle: 'short' })}</td>
                           <td><Link to={`/app/deck/${s.deck.id}?session=${s.id}`} className="deck-link">{s.deck.title}</Link></td>
+                          <td>{s.who}{s.part && <small className="muted"> · {s.part}</small>}</td>
                           <td className="muted">{s.mode === 'teleprompter' ? 'Teleprompter' : 'Ensayo'}{s.blind && <span className="tag"><EyeOff size={12} /> a ciegas</span>}</td>
                           <td className="mono">{fmt(s.totalMs)}</td>
                           <td><span className={`chip ${d > 0 ? 'red' : 'green'}`}>{d > 0 ? `+${fmt(d)} pasado` : `${fmt(-d)} margen`}</span></td>
-                          <td><AudioCell s={s} onDeleted={load} /></td>
+                          <td>{s.mine ? <AudioCell s={s} onDeleted={load} /> : <span className="muted small">privada</span>}</td>
                         </tr>
                       );
                     })}

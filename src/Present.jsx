@@ -6,6 +6,7 @@ import { getDeck, addSession, saveRehearsalAudio } from './store.js';
 import { useAuth } from './supabase.js';
 import { openMic, closeMic, createRecorder, MAX_REC_MS } from './recorder.js';
 import Slide, { usePdf } from './Slide.jsx';
+import { PresenterFilter, matchesFilter, presenterName, Chip } from './Group.jsx';
 
 const SHORTCUTS = [
   [['Enter', 'S'], 'Iniciar el temporizador'],
@@ -44,6 +45,7 @@ export default function Present() {
   const [recErr, setRecErr] = useState('');
   const [toast, setToast] = useState(null); // { text, undo? }
   const [result, setResult] = useState(null);
+  const [who, setWho] = useState(q.get('presenter') || 'all'); // filtro por presentador
 
   const clock = useRef(null);
   const undoRef = useRef(null);
@@ -55,7 +57,10 @@ export default function Present() {
   useEffect(() => { getDeck(id).then(setDeck); }, [id]);
   const count = doc?.numPages ?? 0;
   const plan = deck && count ? deckSlides(deck, count).map((s) => s.plan) : [];
-  const targetMs = (deck?.targetMinutes ?? 10) * 60_000;
+  // Con un presentador elegido: solo sus diapositivas y su tiempo objetivo es la suma de sus planes.
+  const hidden = (i) => !!deck?.skipped?.[i] || (who !== 'all' && deck && !matchesFilter(deck, i, who));
+  const mine = plan.map((_, i) => i).filter((i) => !hidden(i));
+  const targetMs = who === 'all' ? (deck?.targetMinutes ?? 10) * 60_000 : mine.reduce((a, i) => a + plan[i], 0) * 1000;
   if (count && !clock.current) clock.current = newClock(count);
 
   // Segunda pantalla (mismo navegador) vía BroadcastChannel.
@@ -81,8 +86,8 @@ export default function Present() {
   // Liberar el micrófono al salir.
   useEffect(() => () => { const R = rec.current; if (R.r?.state !== 'inactive') R.r?.stop(); closeMic(R.stream); }, []);
 
-  useEffect(() => { if (deck?.skipped?.[0]) { const f = deck.skipped.findIndex((x) => !x); if (f > 0) { setPage(f); clock.current = clock.current && { ...clock.current, cur: f }; } } }, [deck]);
-  const nextPage = (() => { let n = page + 1; while (deck?.skipped?.[n]) n++; return n; })();
+  useEffect(() => { if (deck && count && hidden(page)) { const f = plan.findIndex((_, i) => !hidden(i)); if (f >= 0) { setPage(f); clock.current = clock.current && { ...clock.current, cur: f }; } } }, [deck, who, count]);
+  const nextPage = (() => { let n = page + 1; while (n < count && hidden(n)) n++; return n; })();
 
   const flash = (text, undo) => {
     clearTimeout(flash.t);
@@ -149,8 +154,8 @@ export default function Present() {
     if (!count || state === 'done') return;
     const dir = n >= page ? 1 : -1;
     let to = Math.max(0, Math.min(count - 1, n));
-    while (deck?.skipped?.[to] && to + dir >= 0 && to + dir < count) to += dir;
-    if (deck?.skipped?.[to] || to === page) return;
+    while (hidden(to) && to + dir >= 0 && to + dir < count) to += dir;
+    if (hidden(to) || to === page) return;
     clock.current = goTo(clock.current, to, now());
     mark({ type: 'slide', index: to });
     setPage(to);
@@ -172,7 +177,7 @@ export default function Present() {
     const totalMs = Math.round(c.done.reduce((a, b) => a + b, 0));
     const slides = c.done.map((ms, index) => ({ index, ms: Math.round(ms) })).filter((x) => x.ms > 0);
     const resets = c.resets.some(Boolean) ? c.resets : undefined;
-    const session = await addSession(id, { totalMs, targetMs, slides, resets, blind: blindOk.current && blind, mode: prompter ? 'teleprompter' : 'ensayo' });
+    const session = await addSession(id, { totalMs, targetMs, slides, resets, blind: blindOk.current && blind, mode: prompter ? 'teleprompter' : 'ensayo', ...(who !== 'all' && { presenterId: who === 'none' ? null : who, presenterName: who === 'none' ? 'Sin asignar' : presenterName(deck, who) }) });
     setResult({ session, blob, url: blob && URL.createObjectURL(blob), marks: R.marks, seconds: Math.round(R.acc / 1000), save: true, status: '' });
     setState('done');
   };
@@ -241,7 +246,7 @@ export default function Present() {
   });
 
   if (!deck || !doc) return <div className="present loading">Cargando presentación…</div>;
-  if (state === 'done' && result) return <Result deck={deck} plan={plan} result={result} setResult={setResult} leave={leave} canSave={!!auth.user} accounts={auth.enabled} />;
+  if (state === 'done' && result) return <Result deck={deck} plan={plan.map((b, i) => (hidden(i) ? 0 : b))} result={result} setResult={setResult} leave={leave} canSave={!!auth.user} accounts={auth.enabled} />;
 
   const remaining = targetMs - total;
   const ph = blind ? 'ok' : phase(remaining, targetMs);
@@ -293,6 +298,7 @@ export default function Present() {
                 <button className="btn primary huge" onClick={start}><Play size={22} /> Iniciar</button>
                 <p>El temporizador de <b>{deck.targetMinutes.toLocaleString('es')} min</b> arranca al pulsar. <kbd>→</kbd> avanza, <kbd>P</kbd> pausa, <kbd>R</kbd> reinicia la diapositiva.</p>
                 <div className="p-options">
+                  {deck.presenters?.length > 0 && <PresenterFilter deck={deck} value={who} onChange={(v) => { setWho(v); }} dark />}
                   <label className="switch"><input type="checkbox" checked={blind} onChange={() => setBlind(!blind)} /> <EyeOff size={16} /> Ensayo a ciegas <small>No verás el tiempo hasta terminar</small></label>
                   <label className="switch"><input type="checkbox" checked={recOn} onChange={toggleRec} /> <Mic size={16} /> Grabar audio <small>Grábate, escúchate y te darás cuenta de tus errores inconscientes.</small></label>
                   {recErr && <p className="p-err">{recErr}</p>}
@@ -336,7 +342,7 @@ export default function Present() {
 
           <div className="card-dark">
             <div className="row between">
-              <small>Diapositiva {page + 1} / {count}</small>
+              <small>{who === 'all' ? `Diapositiva ${page + 1} / ${count}` : `Diapositiva ${mine.indexOf(page) + 1} de ${mine.length} de ${who === 'none' ? 'sin asignar' : presenterName(deck, who)} (${page + 1} de ${count} del total)`}</small>
               {!blind && <small>{budgetMs ? `plan ${fmt(budgetMs)}` : 'fuera del plan (anexo)'}</small>}
             </div>
             <div className="row between">
@@ -345,6 +351,19 @@ export default function Present() {
             </div>
             {!blind && <div className="p-progress thin"><i style={{ width: `${slidePct}%` }} className={budgetMs && sMs > budgetMs ? 'over' : ''} /></div>}
           </div>
+
+          {who === 'all' && deck.presenters?.length > 0 && (
+            <div className="card-dark p-who">
+              <div className="row between"><small>Presenta ahora</small>{deck.presenterOf?.[page] ? <Chip deck={deck} id={deck.presenterOf[page]} /> : <small>Sin asignar</small>}</div>
+              {!blind && c && (
+                <ul>{deck.presenters.map((pp) => {
+                  const ms = plan.reduce((a, _, i) => a + (deck.presenterOf?.[i] === pp.id ? (i === c.cur ? sMs : c.done[i]) : 0), 0);
+                  const pl = plan.reduce((a, b, i) => a + (deck.presenterOf?.[i] === pp.id && !deck.skipped?.[i] ? b : 0), 0) * 1000;
+                  return <li key={pp.id}><span>{pp.name}</span><b className={ms > pl ? 'over' : ''}>{fmt(ms)}</b><small>/ {fmt(pl)}</small></li>;
+                })}</ul>
+              )}
+            </div>
+          )}
 
           <div className="card-dark p-next">
             <small>Siguiente</small>
@@ -359,7 +378,7 @@ export default function Present() {
             <small>Cronómetro por diapositiva</small>
             <ol>
               {plan.map((b, i) => {
-                if (deck.skipped?.[i]) return null;
+                if (hidden(i)) return null;
                 const ms = c ? (i === c.cur ? sMs : c.done[i]) : 0;
                 return (
                   <li key={i} className={`${i === page ? 'now' : ''} ${!blind && b && ms > b * 1000 ? 'over' : ''}`} onClick={() => go(i)}>

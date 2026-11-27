@@ -1,8 +1,9 @@
 // Menú ⋯ de una presentación (tarjetas y página de la presentación).
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { MoreHorizontal, Pencil, Copy, Download, Trash2, FileUp, FolderInput } from 'lucide-react';
-import { duplicateDeck, downloadPdf, deleteDeck, replaceDeckFile, updateDeck } from './store.js';
+import { MoreHorizontal, Pencil, Copy, Download, Trash2, FileUp, FolderInput, LogOut } from 'lucide-react';
+import { duplicateDeck, downloadPdf, deleteDeck, replaceDeckFile, updateDeck, removeMember } from './store.js';
+import { currentUser } from './supabase.js';
 import { filesToDeck, ACCEPT } from './convert.js';
 import { forgetPdf } from './Slide.jsx';
 
@@ -57,16 +58,24 @@ export default function DeckMenu({ deck, folders = [], onRename, onDuplicated, o
       <input ref={file} type="file" multiple hidden accept={ACCEPT} onChange={replace} />
       {open && (
         <div className="menu-pop card" role="menu">
-          {onRename && <button role="menuitem" onClick={act('', async () => onRename())}><Pencil size={16} /> Renombrar</button>}
+          {onRename && deck.isOwner !== false && <button role="menuitem" onClick={act('', async () => onRename())}><Pencil size={16} /> Renombrar</button>}
           <button role="menuitem" onClick={act('Duplicando…', async () => onDuplicated?.(await duplicateDeck(deck.id)))}><Copy size={16} /> Duplicar</button>
-          <button role="menuitem" onClick={(e) => { e.stopPropagation(); setOpen(false); file.current.click(); }}><FileUp size={16} /> Reemplazar archivo</button>
+          {deck.isOwner !== false && <button role="menuitem" onClick={(e) => { e.stopPropagation(); setOpen(false); file.current.click(); }}><FileUp size={16} /> Reemplazar archivo</button>}
           <button role="menuitem" onClick={act('', () => downloadPdf(deck))}><Download size={16} /> Descargar PDF</button>
-          <button role="menuitem" onClick={(e) => { e.stopPropagation(); setOpen(false); setFt(true); }}><FolderInput size={16} /> Carpeta y etiquetas</button>
+          {deck.isOwner !== false && <button role="menuitem" onClick={(e) => { e.stopPropagation(); setOpen(false); setFt(true); }}><FolderInput size={16} /> Carpeta y etiquetas</button>}
           <hr />
-          <button role="menuitem" className="menu-danger" onClick={act('Borrando…', async () => {
-            if (!confirm(`¿Borrar «${deck.title}» y sus ${deck.sessions.length} ensayos? No se puede deshacer.`)) return;
-            await deleteDeck(deck.id); onDeleted?.();
-          })}><Trash2 size={16} /> Borrar</button>
+          {deck.isOwner === false ? (
+            <button role="menuitem" className="menu-danger" onClick={act('Saliendo…', async () => {
+              if (!confirm(`¿Salir del grupo de «${deck.title}»? Dejarás de verla.`)) return;
+              await removeMember(deck.id, (await currentUser()).id); onDeleted?.();
+            })}><LogOut size={16} /> Salir del grupo</button>
+          ) : (
+            <button role="menuitem" className="menu-danger" onClick={act('Borrando…', async () => {
+              const others = (deck.members || []).length - 1;
+              if (!confirm(`¿Borrar «${deck.title}» y sus ${deck.sessions.length} ensayos?${others > 0 ? ` Desaparecerá también para ${others} ${others === 1 ? 'miembro' : 'miembros'} del grupo.` : ''} No se puede deshacer.`)) return;
+              await deleteDeck(deck.id); onDeleted?.();
+            })}><Trash2 size={16} /> Borrar</button>
+          )}
         </div>
       )}
       {busy && <span className="menu-busy">{busy}</span>}

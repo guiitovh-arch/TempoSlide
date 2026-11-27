@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Play, ScrollText, Wand2, Gauge, EyeOff } from 'lucide-react';
+import { Play, ScrollText, Wand2, Gauge, EyeOff, Share2, Lock } from 'lucide-react';
 import { fmt, deckSlides, manualPlans, requiredPpm, deckPpm, ppmHint, cleanPlanInput, parsePlan, perSlide, cuts } from './lib.js';
-import { getDeck, updateDeck, deleteSession } from './store.js';
+import { getDeck, updateDeck, deleteSession, subscribeDeck, assignPresenter } from './store.js';
+import { useAuth } from './supabase.js';
+import { ShareModal, PresentersPanel, PresenterFilter, matchesFilter, canEditSlide, presenterColor, Chip, memberName, ago, initials } from './Group.jsx';
 import Slide, { usePdf } from './Slide.jsx';
 import { AppNav } from './Dashboard.jsx';
 import DeckMenu from './DeckMenu.jsx';
@@ -29,19 +31,38 @@ export default function Deck() {
   const [deck, setDeck] = useState(null);
   const [sel, setSel] = useState(q.get('session'));
   const [saved, setSaved] = useState('');
+  const [err, setErr] = useState('');
+  const [share, setShare] = useState(false);
+  const [filter, setFilter] = useState('all');
+  const [picked, setPicked] = useState(new Set());
+  const [warn, setWarn] = useState(null); // { idx, name }: otro miembro cambió la nota que estás editando
+  const focused = useRef(null);
+  const auth = useAuth();
+  const me = auth.user?.id;
 
-  useEffect(() => { getDeck(id).then((d) => (d ? setDeck(d) : nav('/app'))); }, [id]);
+  const reload = () => getDeck(id).then((d) => (d ? setDeck(d) : nav('/app')));
+  useEffect(() => { reload(); }, [id]);
+  // Cambios de otros miembros en vivo; si tocan la nota que estás editando, avisamos (gana el último guardado).
+  useEffect(() => {
+    let off = () => {};
+    subscribeDeck(id, (table, p) => {
+      if (table === 'slides' && p.new?.idx === focused.current && p.new.notes_updated_by && p.new.notes_updated_by !== me) setWarn({ idx: p.new.idx, by: p.new.notes_updated_by });
+      reload();
+    }).then((f) => { off = f; });
+    return () => off();
+  }, [id, me]);
   const count = doc?.numPages ?? 0;
 
   const save = async (patch) => {
+    setErr('');
     setDeck((d) => ({ ...d, ...patch }));
-    setDeck(await updateDeck(id, patch));
-    setSaved('Guardado ✓'); setTimeout(() => setSaved(''), 1500);
+    try { setDeck(await updateDeck(id, patch)); setSaved('Guardado ✓'); setTimeout(() => setSaved(''), 1500); }
+    catch (e) { setErr(e.message); reload(); }
   };
 
   // Primera carga: guardar nº de páginas y alinear notas.
   useEffect(() => {
-    if (deck && count && deck.slideCount !== count) save({ slideCount: count, notes: Array.from({ length: count }, (_, i) => deck.notes[i] || '') });
+    if (deck?.isOwner && count && (deck.slideCount !== count || (deck._rows && deck._rows.length < count))) save({ slideCount: count, notes: Array.from({ length: count }, (_, i) => deck.notes[i] || '') });
   }, [deck?.id, count]);
 
   if (!deck) return <div className="app"><AppNav /><main className="wrap"><p className="muted">Cargando…</p></main></div>;
@@ -52,7 +73,11 @@ export default function Deck() {
   const maxSec = deck.targetMinutes * 60;
   const ppm = deckPpm(slides);
   const setManual = (i, v) => { const p = manualPlans(deck, count); p[i] = v; save({ plan: p, slideTargets: null, timesFromNotes: false }); };
-  const proposeAll = () => save({ plan: slides.map((s) => s.proposed), slideTargets: null, timesFromNotes: false });
+  const editable = (i) => canEditSlide(deck, i, me);
+  const proposeAll = () => { const p = manualPlans(deck, count); slides.forEach((s, i) => { if (editable(i)) p[i] = s.proposed; }); save({ plan: p, slideTargets: null, timesFromNotes: false }); };
+  const assign = async (idxs, pid) => { setErr(''); try { setDeck(await assignPresenter(id, idxs, pid || null)); setPicked(new Set()); } catch (e) { setErr(e.message); reload(); } };
+  const shown = slides.filter((s) => matchesFilter(deck, s.index, filter));
+  const grouped = !!auth.user && deck.members?.length > 0;
   const toggleSkip = (i) => { const s = Array.from({ length: count }, (_, j) => !!deck.skipped?.[j]); s[i] = !s[i]; save({ skipped: s }); };
 
   const session = deck.sessions.find((s) => s.id === sel) || deck.sessions.at(-1);
@@ -67,7 +92,13 @@ export default function Deck() {
       <main className="wrap">
         <header className="deck-head">
           <div className="deck-title-row full">
-            <input className="title-input" aria-label="Título" value={deck.title} onChange={(e) => setDeck({ ...deck, title: e.target.value })} onBlur={(e) => save({ title: e.target.value })} />
+            <input className="title-input" aria-label="Título" value={deck.title} readOnly={!deck.isOwner} onChange={(e) => setDeck({ ...deck, title: e.target.value })} onBlur={(e) => deck.isOwner && save({ title: e.target.value })} />
+            {grouped && (
+              <button className="members-btn" onClick={() => setShare(true)} title="Grupo">
+                {deck.members.slice(0, 4).map((m) => m.avatar_url ? <img key={m.user_id} className="avatar" src={m.avatar_url} alt={m.name} referrerPolicy="no-referrer" /> : <span key={m.user_id} className="avatar" title={m.name}>{initials(m.name)}</span>)}
+                {deck.isOwner && <span className="share-lbl"><Share2 size={14} /> Compartir</span>}
+              </button>
+            )}
             <span className="muted small saved">{saved}</span>
             <Link className="btn ghost" to={`/present/${id}?prompter=1`}><ScrollText size={16} /> <span className="hide-sm">Ensayar con teleprompter</span></Link>
             <Link className="btn coral" to={`/present/${id}`}><Play size={16} /> Presentar</Link>
@@ -75,11 +106,12 @@ export default function Deck() {
           </div>
           <div className="row">
             <label className="inline">Tiempo máximo
-              <input type="number" min="1" step="0.5" value={deck.targetMinutes} onChange={(e) => save({ targetMinutes: +e.target.value || 1 })} /> min
+              <input type="number" min="1" step="0.5" value={deck.targetMinutes} disabled={!deck.isOwner} onChange={(e) => save({ targetMinutes: +e.target.value || 1 })} /> min
             </label>
             {deck.timesFromNotes && <span className="chip green">⏱ Plan importado de tus notas</span>}
             <button className="btn ghost small" onClick={proposeAll} title="Rellena el plan de todas las diapositivas a partir de las notas"><Wand2 size={14} /> Proponer plan para todas</button>
             <Link className="btn ghost small" to={`/app/analizador?deck=${id}`}><Gauge size={14} /> Analizar</Link>
+            {auth.user && deck.isOwner && <button className="btn ghost small" onClick={() => setShare(true)}><Share2 size={14} /> Compartir</button>}
           </div>
         </header>
 
@@ -127,24 +159,60 @@ export default function Deck() {
           </div>
         </section>
 
-        <h2 className="left">Diapositiva a diapositiva</h2>
+        {err && <p className="notice" role="alert">{err}</p>}
+        <PresentersPanel deck={deck} slides={slides} onChanged={reload} />
+
+        <div className="row between slides-head">
+          <h2 className="left">Diapositiva a diapositiva</h2>
+          <PresenterFilter deck={deck} value={filter} onChange={setFilter} />
+        </div>
+        {picked.size > 0 && deck.presenters.length > 0 && (
+          <div className="assign-bar card">
+            <b>{picked.size} seleccionada{picked.size > 1 ? 's' : ''}</b>
+            <label className="inline">Asignar a
+              <select value="" onChange={(e) => e.target.value && assign([...picked], e.target.value === 'none' ? null : e.target.value)}>
+                <option value="">Elige…</option>{deck.presenters.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}<option value="none">Sin asignar</option>
+              </select>
+            </label>
+            <button className="link-btn" onClick={() => setPicked(new Set())}>Cancelar</button>
+          </div>
+        )}
         <p className="muted">Edita el guion (alimenta el teleprompter), el plan en segundos de cada diapositiva u omítela. <span className="legend"><i className="plan" /> plan <i className="real" /> {session ? 'ensayo seleccionado' : 'ensayo'}</span></p>
         <div className="slides-list">
-          {slides.map((s, i) => {
+          {shown.length === 0 && <p className="muted">Nadie tiene diapositivas con este filtro.</p>}
+          {shown.map((s) => {
+            const i = s.index;
             const sppm = requiredPpm(s.words, s.plan);
             const hint = ppmHint(sppm);
+            const can = editable(i);
+            const pid = deck.presenterOf?.[i];
+            const meta = deck.notesMeta?.[i];
             return (
-              <div key={i} className={`slide-row card ${s.omitted ? 'skipped' : ''}`}>
-                <div className="slide-row-thumb"><span className="num">{i + 1}</span><Slide doc={doc} page={i} className="thumb" /></div>
-                <textarea
-                  placeholder="Escribe aquí lo que vas a decir en esta diapositiva…"
-                  defaultValue={deck.notes[i] || ''}
-                  onBlur={(e) => { if (e.target.value !== (deck.notes[i] || '')) { const n = [...deck.notes]; n[i] = e.target.value; save({ notes: n }); } }}
-                />
+              <div key={i} className={`slide-row card ${s.omitted ? 'skipped' : ''} ${pid ? 'assigned' : ''}`} style={pid ? { '--pc': presenterColor(deck, pid) } : undefined}>
+                <div className="slide-row-thumb">
+                  {deck.presenters.length > 0 && <input type="checkbox" className="pick" aria-label={`Seleccionar diapositiva ${i + 1}`} checked={picked.has(i)} onChange={(e) => { const n = new Set(picked); e.target.checked ? n.add(i) : n.delete(i); setPicked(n); }} />}
+                  <span className="num">{i + 1}</span><Slide doc={doc} page={i} className="thumb" />
+                  {pid && <span className="thumb-chip"><Chip deck={deck} id={pid} /></span>}
+                </div>
+                <div className="notes-col">
+                  <textarea
+                    key={focused.current === i ? `f${i}` : `${i}-${meta?.at || ''}-${(deck.notes[i] || '').length}`}
+                    placeholder={can ? 'Escribe aquí lo que vas a decir en esta diapositiva…' : 'Sin notas'}
+                    defaultValue={deck.notes[i] || ''}
+                    readOnly={!can}
+                    onFocus={() => { focused.current = i; }}
+                    onBlur={(e) => { focused.current = null; if (warn?.idx === i) setWarn(null); if (can && e.target.value !== (deck.notes[i] || '')) { const n = [...deck.notes]; n[i] = e.target.value; save({ notes: n }); } }}
+                  />
+                  {warn?.idx === i && <small className="ppm-hint bad" role="alert">{memberName(deck, warn.by)} acaba de cambiar esta nota. Si guardas, tu versión sustituirá a la suya.</small>}
+                  <small className="muted">
+                    {!can && <><Lock size={11} /> Solo lectura: la presenta {deck.presenters.find((p) => p.id === pid)?.name}. </>}
+                    {grouped && meta?.by && meta?.at && <>Editado por {meta.by === me ? 'ti' : memberName(deck, meta.by)} {ago(meta.at)}</>}
+                  </small>
+                </div>
                 <div className="slide-row-time">
                   <div className="row">
-                    <label className="inline">Plan <PlanInput manual={s.manualPlan} proposed={s.proposed} disabled={s.omitted} onCommit={(v) => setManual(i, v)} /> s</label>
-                    {s.manualPlan == null && !s.omitted && <button className="link-btn small" onClick={() => setManual(i, s.proposed)} title="Fijar el plan propuesto">Proponer</button>}
+                    <label className="inline">Plan <PlanInput manual={s.manualPlan} proposed={s.proposed} disabled={s.omitted || !can} onCommit={(v) => setManual(i, v)} /> s</label>
+                    {s.manualPlan == null && !s.omitted && can && <button className="link-btn small" onClick={() => setManual(i, s.proposed)} title="Fijar el plan propuesto">Proponer</button>}
                   </div>
                   <div className="bars">
                     <span className="bar plan"><i style={{ width: `${((s.plan * 1000) / maxBar) * 100}%` }} /></span>
@@ -154,13 +222,21 @@ export default function Deck() {
                     {session ? `Real ${fmt(real[i])} · ` : ''}{s.words} palabras{sppm ? ` · ≈ ${sppm} ppm` : ''}
                   </small>
                   {hint && !s.omitted && <small className={`ppm-hint ${sppm > 180 ? 'bad' : ''}`}>{hint}</small>}
-                  <label className="inline small"><input type="checkbox" checked={s.omitted} onChange={() => toggleSkip(i)} /> Omitir al presentar</label>
+                  <label className="inline small"><input type="checkbox" checked={s.omitted} disabled={!can} onChange={() => toggleSkip(i)} /> Omitir al presentar</label>
+                  {deck.presenters.length > 0 && (
+                    <label className="inline small">Presenta
+                      <select value={pid || ''} disabled={!can} onChange={(e) => assign([i], e.target.value || null)}>
+                        <option value="">Sin asignar</option>{deck.presenters.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                    </label>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
       </main>
+      {share && <ShareModal deck={deck} onClose={() => setShare(false)} onChanged={reload} />}
     </div>
   );
 }

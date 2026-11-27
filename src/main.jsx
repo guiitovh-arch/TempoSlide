@@ -14,6 +14,7 @@ import Analyzer from './Analyzer.jsx';
 import Library from './Library.jsx';
 import { Events, EventDetail, SpeakersPage, PostersPage } from './Org.jsx';
 import Organizer from './Organizer.jsx';
+import { JoinPage } from './Group.jsx';
 import './styles.css';
 
 createRoot(document.getElementById('root')).render(
@@ -33,6 +34,7 @@ createRoot(document.getElementById('root')).render(
       <Route path="/app/temporizador" element={<Timer />} />
       <Route path="/app/planes" element={<Plans />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/unirse/:token" element={<JoinPage />} />
       <Route path="/universidades" element={<Universities />} />
       <Route path="/privacidad" element={<Privacy />} />
       <Route path="/terminos" element={<Terms />} />

@@ -129,6 +129,8 @@ export default function Dashboard() {
   const [pending, setPending] = useState(0);
   useEffect(() => {
     if (!auth.ready) return;
+    // Tras iniciar sesión desde una invitación, volver a ella.
+    try { const next = sessionStorage.getItem('ts-next'); if (auth.user && next) { sessionStorage.removeItem('ts-next'); nav(next, { replace: true }); return; } } catch {}
     (async () => {
       // Primera vez con sesión: subir a la cuenta lo creado como invitado.
       if (auth.user && (await listLocalDecks()).length) setImported(await importLocalDecks());
