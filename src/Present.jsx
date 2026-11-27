@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Eye, EyeOff, RotateCcw, Mic, Download, Trash2, ScrollText, Square, Monitor, Maximize, HelpCircle, Play, Pause } from 'lucide-react';
+import { MoreHorizontal, SlidersHorizontal, ChevronLeft, ChevronRight, Eye, EyeOff, RotateCcw, Mic, Download, Trash2, ScrollText, Square, Monitor, Maximize, HelpCircle, Play, Pause } from 'lucide-react';
 import { fmt, deckSlides, pace, phase, newClock, goTo, pauseClock, resumeClock, resetSlide, undoReset, slideMs as clockSlideMs, totalMs as clockTotalMs } from './lib.js';
 import { getDeck, addSession, saveRehearsalAudio } from './store.js';
 import { useAuth } from './supabase.js';
@@ -36,9 +36,11 @@ export default function Present() {
   const [pBig, setPBig] = useState(false);
   const [pAuto, setPAuto] = useState(true);
   const [pSpeed, setPSpeed] = useState(30);
-  const [pSize, setPSize] = useState(34);
+  const [pSize, setPSize] = useState(() => (window.innerWidth < 760 ? 26 : 34));
   const [pMirror, setPMirror] = useState(false);
   const [help, setHelp] = useState(false);
+  const [pSettings, setPSettings] = useState(false); // ajustes del teleprompter (plegados en el móvil)
+  const touch = useRef(null);
   const [blind, setBlind] = useState(false);
   const blindOk = useRef(true); // pasa a false si se vio el tiempo durante el ensayo
   const [recOn, setRecOn] = useState(false);
@@ -258,9 +260,26 @@ export default function Present() {
   return (
     <div className={`present phase-${ph}`}>
       <header className="p-top">
-        <button className="btn glass small" onClick={finish}>{state === 'ready' ? '← Salir' : <><Square size={14} /> Terminar</>}</button>
+        <button className="btn glass small" onClick={finish}>{state === 'ready' ? <><ChevronLeft size={15} /> Salir</> : <><Square size={14} /> Terminar</>}</button>
         <b className="p-title">{deck.title}</b>
-        <div className="row">
+        {/* Móvil: cuenta atrás compacta + teleprompter + menú ⋯ */}
+        <div className="p-tools-mob">
+          {recording && <span className="rec-dot" role="status" aria-label="Grabando"><i /></span>}
+          {blind ? <span className="m-clock blind"><EyeOff size={14} /></span> : <span className={`m-clock ${ph}`}>{fmt(remaining)}</span>}
+          <button className={`btn glass icon ${prompter ? 'on' : ''}`} onClick={() => setPrompter(!prompter)} aria-label="Teleprompter"><ScrollText size={17} /></button>
+          <details className="p-more">
+            <summary className="btn glass icon" aria-label="Más opciones"><MoreHorizontal size={18} /></summary>
+            <div className="p-more-menu" onClick={(e) => e.target.closest('button') && e.currentTarget.parentElement.removeAttribute('open')}>
+              <button onClick={toggleBlind}>{blind ? <Eye size={16} /> : <EyeOff size={16} />} {blind ? 'Mostrar tiempo' : 'Ocultar tiempo'}</button>
+              {state !== 'ready' && <button onClick={doReset}><RotateCcw size={16} /> Reiniciar diapositiva</button>}
+              <button onClick={() => setBlack(!black)}>⬛ {black ? 'Quitar negro' : 'Pantalla en negro'}</button>
+              <button onClick={openAudience}><Monitor size={16} /> Pantalla de público</button>
+              <button onClick={fullscreen}><Maximize size={16} /> Pantalla completa</button>
+              <button onClick={() => setHelp(true)}><HelpCircle size={16} /> Atajos</button>
+            </div>
+          </details>
+        </div>
+        <div className="row p-tools-desk">
           {recording && <span className="rec-dot" role="status"><i /> {rec.current.r.state === 'paused' ? 'Grabación en pausa' : 'Grabando'}</span>}
           <button className={`btn glass small ${blind ? 'on' : ''}`} onClick={toggleBlind} title="Ocultar tiempo (O)">{blind ? <EyeOff size={15} /> : <Eye size={15} />} <span className="hide-sm">{blind ? 'Tiempo oculto' : 'Ocultar tiempo'}</span></button>
           <button className={`btn glass small ${prompter ? 'on' : ''}`} onClick={() => setPrompter(!prompter)} title="Teleprompter (T)"><ScrollText size={15} /> <span className="hide-sm">Teleprompter</span></button>
@@ -291,11 +310,13 @@ export default function Present() {
 
       <div className={`p-main ${prompter ? 'with-prompter' : ''} ${prompter && pBig ? 'prompter-big' : ''}`}>
         <section className="p-stage">
-          <div className="p-slide-box">
+          <div className="p-slide-box"
+            onTouchStart={(e) => { touch.current = e.touches[0].clientX; }}
+            onTouchEnd={(e) => { const dx = e.changedTouches[0].clientX - (touch.current ?? 0); if (state !== 'ready' && Math.abs(dx) > 50) go(page + (dx < 0 ? 1 : -1)); touch.current = null; }}>
             <Slide doc={doc} page={page} black={black} />
             {state === 'ready' && (
               <div className="p-start">
-                <button className="btn primary huge" onClick={start}><Play size={22} /> Iniciar</button>
+                <button className="btn primary huge p-start-btn" onClick={start}><Play size={22} /> Iniciar</button>
                 <p>El temporizador de <b>{deck.targetMinutes.toLocaleString('es')} min</b> arranca al pulsar. <kbd>→</kbd> avanza, <kbd>P</kbd> pausa, <kbd>R</kbd> reinicia la diapositiva.</p>
                 <div className="p-options">
                   {deck.presenters?.length > 0 && <PresenterFilter deck={deck} value={who} onChange={(v) => { setWho(v); }} dark />}
@@ -308,7 +329,8 @@ export default function Present() {
           </div>
           {prompter && (
             <div className="prompter">
-              <div className="prompter-bar">
+              <button className={`btn glass icon prompter-gear ${pSettings ? 'on' : ''}`} onClick={() => setPSettings(!pSettings)} aria-label="Ajustes del teleprompter" aria-expanded={pSettings}><SlidersHorizontal size={16} /></button>
+              <div className={`prompter-bar ${pSettings ? 'open' : ''}`}>
                 <label className="inline"><input type="checkbox" checked={pAuto} onChange={(e) => setPAuto(e.target.checked)} /> Auto-ritmo</label>
                 {!pAuto && <label className="inline">Velocidad<input type="range" min="5" max="120" value={pSpeed} onChange={(e) => setPSpeed(+e.target.value)} /></label>}
                 <label className="inline">Tamaño<input type="range" min="18" max="72" value={pSize} onChange={(e) => setPSize(+e.target.value)} /></label>
@@ -390,6 +412,41 @@ export default function Present() {
           </div>
         </aside>
       </div>
+
+      {/* Móvil: controles siempre a mano */}
+      {/* Móvil sin teleprompter: ritmo, progreso y la siguiente diapositiva en el espacio libre */}
+      {!prompter && state !== 'ready' && (
+        <section className="m-panel">
+          {!blind && (
+            <div className="row between">
+              <span className="small">Transcurrido {fmt(total)}</span>
+              <span className={`chip ${p >= 0 ? 'green' : 'red'}`}>{p >= 0 ? `${fmt(p, true)} adelantado` : `${fmt(p)} tarde`}</span>
+            </div>
+          )}
+          {!blind && <div className="p-progress"><i style={{ width: `${Math.min(100, (total / targetMs) * 100)}%` }} /></div>}
+          <div className="m-next-prev">
+            <small>Siguiente</small>
+            {nextPage < count ? <Slide doc={doc} page={nextPage} className="thumb" /> : <div className="slide-empty small">Última diapositiva</div>}
+          </div>
+        </section>
+      )}
+
+      <nav className="m-bar" aria-label="Controles">
+        {state !== 'ready' && !blind && budgetMs > 0 && <span className="m-progress"><i style={{ width: `${slidePct}%` }} className={sMs > budgetMs ? 'over' : ''} /></span>}
+        {state === 'ready' ? (
+          <button className="btn primary m-start" onClick={start}><Play size={18} /> Iniciar</button>
+        ) : (
+          <>
+            <button className="btn glass m-nav" onClick={() => go(page - 1)} disabled={page === 0} aria-label="Diapositiva anterior"><ChevronLeft size={22} /></button>
+            <button className="btn glass m-nav" onClick={togglePause} aria-label={state === 'paused' ? 'Reanudar' : 'Pausar'}>{state === 'paused' ? <Play size={18} /> : <Pause size={18} />}</button>
+            <div className="m-info">
+              <small>{who === 'all' ? `${page + 1} / ${count}` : `${mine.indexOf(page) + 1} / ${mine.length} · ${who === 'none' ? 'sin asignar' : presenterName(deck, who)}`}{who === 'all' && deck.presenterOf?.[page] && ` · ${presenterName(deck, deck.presenterOf[page])}`}</small>
+              {blind ? <b>—</b> : <b className={budgetMs && sMs > budgetMs ? 'over' : ''}>{fmt(sMs)}{budgetMs ? <small> / {fmt(budgetMs)}</small> : null}</b>}
+            </div>
+            <button className="btn coral m-next" onClick={() => go(page + 1)} disabled={nextPage >= count}>Siguiente <ChevronRight size={18} /></button>
+          </>
+        )}
+      </nav>
     </div>
   );
 }

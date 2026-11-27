@@ -654,3 +654,68 @@ h4.mt { margin: 6px 0 0; font-family: var(--display); }
 .p-who .pchip { background: #ffffff1a; color: #fff; }
 .p-start .pfilter { justify-self: center; }
 .person-filter { margin: 0 0 14px 10px; padding: 7px 12px; border-radius: 999px; }
+
+/* ─── Presentar en el móvil ─── */
+.p-tools-mob, .m-bar, .prompter-gear { display: none; }
+.btn.icon { width: 40px; height: 40px; padding: 0; }
+.prompter { position: relative; }
+@media (max-width: 760px) {
+  .present { height: 100dvh; }
+  .p-top { padding: 8px 10px; gap: 8px; padding-top: max(8px, env(safe-area-inset-top)); }
+  .p-top > .btn { flex: none; }
+  .p-title { flex: 1; min-width: 0; font-size: .9rem; }
+  .p-tools-desk { display: none !important; }
+  .p-tools-mob { display: flex; align-items: center; gap: 6px; flex: none; }
+  .m-clock { font-family: var(--mono); font-weight: 700; font-size: 1.05rem; padding: 6px 10px; border-radius: 999px; background: #ffffff14; }
+  .m-clock.warn { color: #f2b33d; } .m-clock.danger, .m-clock.over { color: #ff6b6b; background: #ff4d4d22; }
+  .m-clock.blind { color: #ffffffaa; display: inline-flex; }
+  .rec-dot { padding: 6px; } 
+  .p-more { position: relative; }
+  .p-more summary { list-style: none; } .p-more summary::-webkit-details-marker { display: none; }
+  .p-more-menu { position: absolute; right: 0; top: 46px; z-index: 30; min-width: 220px; display: grid; padding: 6px; border-radius: 16px; background: #241c27; box-shadow: 0 16px 40px #000a, inset 0 0 0 1px #ffffff14; }
+  .p-more-menu button { display: flex; align-items: center; gap: 10px; padding: 12px; border: 0; border-radius: 10px; background: none; color: #fff; font: inherit; text-align: left; cursor: pointer; }
+  .p-more-menu button:active { background: #ffffff14; }
+
+  .p-main { display: flex; flex-direction: column; gap: 10px; padding: 0 10px; overflow: hidden; flex: 1; min-height: 0; }
+  .p-side { display: none; }
+  .p-stage { flex: 1; min-height: 0; gap: 10px; }
+  .p-slide-box { flex: none !important; container-type: normal; display: block; }
+  .p-slide-box .slide { width: 100%; }
+  .with-prompter.prompter-big .p-slide-box .slide { width: 42%; margin: 0 auto; }
+  .prompter { flex: 1; min-height: 0; border-radius: 16px; }
+  .prompter-gear { display: inline-grid; place-items: center; position: absolute; right: 8px; top: 8px; z-index: 3; width: 36px; height: 36px; }
+  .prompter-bar { display: none; padding: 10px 52px 10px 12px; gap: 10px 14px; }
+  .prompter-bar.open { display: flex; }
+  .prompter-text { padding: 0 6%; }
+  .prompter-pad { height: 22%; }
+
+  /* Antes de iniciar: opciones debajo de la diapositiva, sin taparla */
+  .p-start { position: static; background: none; backdrop-filter: none; padding: 12px 0 0; place-content: start; justify-items: stretch; text-align: left; gap: 10px; }
+  .p-start > p, .p-start-btn { display: none; }
+  .p-options { max-width: none; }
+  .with-prompter .p-stage:has(.p-start) .prompter { display: none; }
+  .p-stage:has(.p-start) { overflow-y: auto; }
+  .switch { padding: 12px 14px; }
+
+  .m-bar { display: flex; align-items: center; gap: 8px; padding: 10px 10px max(10px, env(safe-area-inset-bottom)); background: #140f16f2; box-shadow: 0 -1px 0 #ffffff14; }
+  .m-nav { width: 48px; height: 48px; padding: 0; flex: none; }
+  .m-info { flex: 1; min-width: 0; display: grid; text-align: center; line-height: 1.15; }
+  .m-info small { color: #ffffffaa; font-size: .75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .m-info b { font-family: var(--mono); font-size: 1.25rem; } .m-info b small { font-size: .8rem; color: #ffffff77; } .m-info b.over { color: #ff6b6b; }
+  .m-next { height: 48px; padding: 0 16px; flex: none; font-size: 1rem; }
+  .m-start { flex: 1; height: 52px; font-size: 1.1rem; background: #ff795f; color: #27211f; }
+  .toast { bottom: 90px; width: calc(100% - 24px); justify-content: space-between; }
+}
+
+.m-panel { display: none; }
+@media (max-width: 760px) {
+  .m-bar { position: relative; }
+  .m-bar .m-start { background: #ff795f; color: #27211f; box-shadow: 0 10px 30px -10px #ff795f; }
+  .m-progress { position: absolute; left: 0; right: 0; top: 0; height: 3px; background: #ffffff12; }
+  .m-progress i { display: block; height: 100%; background: #ff795f; transition: width .2s linear; } .m-progress i.over { background: #ff4d4d; }
+  .p-main:not(.with-prompter) { flex: none; }
+  .m-panel { display: grid; gap: 10px; padding: 12px 14px; margin: 0 10px 10px; border-radius: 16px; background: #ffffff0b; box-shadow: inset 0 0 0 1px #ffffff12; flex: 1; min-height: 0; align-content: start; overflow: hidden; }
+  .m-panel .small { color: #ffffffbb; }
+  .m-next-prev { display: grid; gap: 6px; } .m-next-prev small { color: #ffffff88; }
+  .m-next-prev .slide { width: 55%; }
+}
