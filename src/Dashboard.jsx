@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { User, FolderOpen, Sparkles, LogOut, Home, History, Timer, Clock, Layers, Repeat, GraduationCap, Gauge, CalendarDays, CalendarRange, Users, LayoutGrid, ChevronDown } from 'lucide-react';
 import { fmt, markedTimes } from './lib.js';
@@ -65,16 +65,36 @@ function OrgDropdown() {
   );
 }
 
+// La barra mide lo que ocupa y se compacta por niveles hasta caber (nunca se solapa):
+// 0 completa · 1 sin iconos · 2 «Organizar ▾» y sin nombre junto al avatar · 3 menú lateral.
 export function AppNav() {
+  const [lvl, setLvl] = useState(0);
+  const [, remeasure] = useState(0);
+  const nav = useRef(null), links = useRef(null), right = useRef(null);
+  useLayoutEffect(() => {
+    const n = nav.current, l = links.current;
+    if (!n || !l || lvl >= 3) return;
+    const kids = [...l.children].filter((c) => getComputedStyle(c).display !== 'none');
+    const need = kids.reduce((a, c) => a + c.getBoundingClientRect().width, 0) + 2 * Math.max(0, kids.length - 1) + 16;
+    const logo = n.firstElementChild.getBoundingClientRect().width;
+    const avail = n.clientWidth - parseFloat(getComputedStyle(n).paddingLeft) - parseFloat(getComputedStyle(n).paddingRight) - logo - right.current.getBoundingClientRect().width - 48; // huecos entre bloques + margen de seguridad
+    if (need > avail) setLvl(lvl + 1);
+  });
+  useEffect(() => {
+    let w = 0;
+    const ro = new ResizeObserver(([e]) => { if (Math.abs(e.contentRect.width - w) > 1) { w = e.contentRect.width; setLvl(0); remeasure((x) => x + 1); } });
+    ro.observe(nav.current);
+    return () => ro.disconnect();
+  }, []);
   return (
-    <nav className="nav wrap app-nav">
+    <nav ref={nav} className={`nav wrap app-nav lvl-${lvl}`}>
       <Logo to="/app" />
-      <div className="nav-links app-links">
+      <div ref={links} className="nav-links app-links">
         {MAIN_LINKS.map(link)}
         <span className="org-pill">{ORG_LINKS.map(link)}</span>
         <OrgDropdown />
       </div>
-      <div className="row nav-right"><ThemeToggle /><MobileMenu>{MAIN_LINKS.map(link)}<hr />{ORG_LINKS.map(link)}</MobileMenu><UserMenu /></div>
+      <div ref={right} className="row nav-right"><ThemeToggle /><MobileMenu>{MAIN_LINKS.map(link)}<hr />{ORG_LINKS.map(link)}</MobileMenu><UserMenu /></div>
     </nav>
   );
 }
