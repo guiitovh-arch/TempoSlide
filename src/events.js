@@ -1,7 +1,7 @@
 // Datos de Eventos, Ponentes, Organizador y Pósteres (Supabase; ver supabase/002_eventos.sql).
 // Solo con cuenta: estas herramientas nunca guardan solo en el navegador.
 import { useEffect, useState } from 'react';
-import { supabase } from './supabase.js';
+import { supabase, currentUser } from './supabase.js';
 import { listDecks } from './store.js';
 import { deckSlides, simulate } from './lib.js';
 
@@ -70,7 +70,7 @@ export function useActiveEvent() {
   const [err, setErr] = useState('');
   const initial = new URLSearchParams(location.search).get('evento') || (() => { try { return localStorage.getItem('ts-event'); } catch { return null; } })();
   const [id, setIdState] = useState(initial);
-  useEffect(() => { listEvents().then(setEvents).catch((e) => { setErr(e.message); setEvents([]); }); }, []);
+  useEffect(() => { currentUser().then((u) => (u ? listEvents().then(setEvents) : setEvents([]))).catch((e) => { setErr(e.message); setEvents([]); }); }, []);
   const setId = (v) => { setIdState(v); try { localStorage.setItem('ts-event', v); } catch {} const u = new URL(location.href); u.searchParams.set('evento', v); history.replaceState(null, '', u); };
   const active = events?.find((e) => e.id === id) || events?.[0] || null;
   return { events, active, setId, err, reload: () => listEvents().then(setEvents) };
